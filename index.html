@@ -354,6 +354,18 @@
     #splash .sp-text { font-size:14px; color:var(--text2, #8e8e93); }
     @keyframes sp-spin { to { transform:rotate(360deg); } }
     @media (prefers-reduced-motion: reduce) { #splash .sp-ring { animation-duration:2s; } }
+
+    /* ส่วนหัวล็อกติดขอบบน (ชื่อหน้า + คำอธิบายอยู่บรรทัดเดียว) */
+    .large-title { position:sticky; top:0; z-index:40;
+      margin:calc(-1 * max(env(safe-area-inset-top), 8px)) -16px 0;
+      padding:calc(max(env(safe-area-inset-top), 8px) + 10px) 20px 10px;
+      display:flex; align-items:baseline; gap:12px;
+      background:color-mix(in srgb, var(--bg) 74%, transparent);
+      -webkit-backdrop-filter:saturate(180%) blur(22px); backdrop-filter:saturate(180%) blur(22px);
+      border-bottom:.5px solid var(--glass-brd, rgba(128,128,140,.22)); }
+    .large-title h1 { font-size:26px; flex:none; }
+    .large-title p { margin:0; flex:1; min-width:0; text-align:right; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    @media (max-width:360px) { .large-title { margin-left:-12px; margin-right:-12px; padding-left:16px; padding-right:16px; } }
   </style>
   <!-- ===== PWA: ตัวเชื่อม google.script.run -> Apps Script Web App (fetch) ===== -->
   <script>
