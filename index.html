@@ -340,6 +340,21 @@
   <meta name="apple-mobile-web-app-title" content="Fuel">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <script src="./config.js"></script>
+  <style>
+    /* หน้าโหลดตอนเปิดแอพ */
+    #splash { position:fixed; inset:0; z-index:9999; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:22px;
+      background:radial-gradient(60% 40% at 20% 15%, rgba(58,130,208,.28), transparent 70%),
+                 radial-gradient(55% 40% at 85% 25%, rgba(120,90,190,.22), transparent 70%),
+                 radial-gradient(60% 45% at 70% 90%, rgba(60,160,190,.20), transparent 70%),
+                 var(--bg);
+      transition:opacity .35s ease; }
+    #splash.out { opacity:0; pointer-events:none; }
+    #splash .sp-icon { width:76px; height:76px; border-radius:19px; box-shadow:0 10px 30px rgba(0,0,0,.25); }
+    #splash .sp-ring { width:34px; height:34px; border-radius:50%; border:3px solid rgba(128,128,140,.25); border-top-color:#3a82d0; animation:sp-spin .8s linear infinite; }
+    #splash .sp-text { font-size:14px; color:var(--text2, #8e8e93); }
+    @keyframes sp-spin { to { transform:rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { #splash .sp-ring { animation-duration:2s; } }
+  </style>
   <!-- ===== PWA: ตัวเชื่อม google.script.run -> Apps Script Web App (fetch) ===== -->
   <script>
     // ค่า GAS_URL และ API_KEY อยู่ในไฟล์ config.js (แก้ที่นั่น ไม่ต้องแก้ไฟล์นี้)
@@ -378,6 +393,11 @@
   </script>
 </head>
 <body>
+  <div id="splash" role="status" aria-live="polite">
+    <img class="sp-icon" src="./icons/icon-192.png" alt="">
+    <div class="sp-ring"></div>
+    <div class="sp-text">กำลังโหลดข้อมูล…</div>
+  </div>
 
 <main class="app">
 
@@ -910,6 +930,17 @@
   }
 
   // ===================== เริ่มต้น / โหลดข้อมูล =====================
+  // หน้าโหลด: ซ่อนเมื่อข้อมูลหลัก 3 ชุดแรกโหลดเสร็จ (หรือล้มเหลว) และกันค้างด้วยเวลา 15 วินาที
+  const splashWaiting = new Set(['fuel', 'maint', 'sched']);
+  function hideSplash() {
+    const el = document.getElementById('splash');
+    if (!el || el.classList.contains('out')) return;
+    el.classList.add('out');
+    setTimeout(() => el.remove(), 450);
+  }
+  function splashDone(key) { splashWaiting.delete(key); if (!splashWaiting.size) hideSplash(); }
+  setTimeout(hideSplash, 15000);
+
   window.addEventListener('DOMContentLoaded', () => {
     const today = localDateStr();
     document.getElementById('date').value = today;
@@ -953,12 +984,13 @@
     google.script.run
       .withSuccessHandler((data) => {
         globalData = data || [];
+        splashDone('fuel');
         if (mileageMode === 'trip') handleTripInput();   // ข้อมูลมาแล้ว → คำนวณไมล์ฐานใหม่
         updateDashboard(); updateChart(); buildMonthFilterOptions(); renderHistory(); updateLastPriceChip();
         if (globalMaintData && globalMaintData.length > 0) renderMaintenance();
       })
       .withFailureHandler((err) => {
-        handleServerError(err);
+        handleServerError(err); splashDone('fuel');
         document.getElementById('historyContainer').innerHTML = '<div class="empty"><i class="bi bi-wifi-off"></i>โหลดข้อมูลไม่สำเร็จ กรุณาลองใหม่</div>';
       })
       .getFuelData();
@@ -967,10 +999,11 @@
     google.script.run
       .withSuccessHandler((data) => {
         globalMaintData = data || [];
+        splashDone('maint');
         updateDashboard(); updateChart(); renderMaintenance();
       })
       .withFailureHandler((err) => {
-        handleServerError(err);
+        handleServerError(err); splashDone('maint');
         document.getElementById('maintContainer').innerHTML = '<div class="empty"><i class="bi bi-wifi-off"></i>โหลดข้อมูลไม่สำเร็จ กรุณาลองใหม่</div>';
       })
       .getMaintenanceData();
@@ -985,12 +1018,13 @@
     google.script.run
       .withSuccessHandler((data) => {
         maintenanceScheduleData = data || [];
+        splashDone('sched');
         renderQuickTextButtons();
         updateDashboard();
         if (document.getElementById('sectionSchedule').classList.contains('on')) showAllSchedule();
       })
       .withFailureHandler((err) => {
-        handleServerError(err);
+        handleServerError(err); splashDone('sched');
         document.getElementById('scheduleContainer').innerHTML = '<div class="empty"><i class="bi bi-wifi-off"></i>โหลดตารางเช็คระยะไม่สำเร็จ</div>';
       })
       .getScheduleData();

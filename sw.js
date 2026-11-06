@@ -1,5 +1,5 @@
 // Service worker: เก็บตัวแอพ (หน้า + ไลบรารี) ไว้ในเครื่อง ข้อมูลจริงดึงจาก Apps Script เสมอ
-const CACHE = 'fuel-v3';
+const CACHE = 'fuel-v4';
 const SHELL = ['./', './index.html', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 
