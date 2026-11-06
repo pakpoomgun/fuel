@@ -34,6 +34,13 @@
     }
     * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
     html { -webkit-text-size-adjust:100%; }
+    /* PWA เต็มจอ: ให้พื้นหลังคลุมถึงขอบจริง ไม่เหลือแถบว่างบน/ล่าง */
+    html { background:var(--bg); min-height:100%; }
+    body { min-height:100vh; min-height:100dvh; }
+    /* iPhone (แถบสถานะโปร่ง): โหมดสว่างตัวหนังสือแถบสถานะเป็นสีขาว จึงใส่เงาจางๆ ให้อ่านออก */
+    @media (display-mode: standalone) and (prefers-color-scheme: light) {
+      body::after { content:''; position:fixed; top:0; left:0; right:0; height:env(safe-area-inset-top,0px); background:linear-gradient(rgba(20,25,50,.45), rgba(20,25,50,0)); pointer-events:none; z-index:60; }
+    }
     body {
       margin:0; background:var(--bg); color:var(--text);
       font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Prompt','Inter',sans-serif;
@@ -331,12 +338,12 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Fuel">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <!-- ===== PWA: ตัวเชื่อม google.script.run -> Apps Script Web App (fetch) ===== -->
   <script>
     // แก้ 2 ค่านี้ให้ตรงกับของคุณ (ค่าเดียวกับใน Code.gs)
-    const GAS_URL = 'https://script.google.com/macros/s/AKfycbzhJlN4YdzbzpriifHRjJui07RWR93vFdFVCnGRJaRznoOhvQBMgTcPV9HJu5ZhtaiZrg/exec';
-    const API_KEY = 'PPgunP@ssw0rd';
+    const GAS_URL = 'https://script.google.com/macros/s/ใส่_DEPLOYMENT_ID_ตรงนี้/exec';
+    const API_KEY = 'ตั้งรหัสอะไรก็ได้';
 
     (function () {
       function makeRunner(onOk, onFail) {
