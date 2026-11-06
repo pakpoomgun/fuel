@@ -1,0 +1,1821 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#eef1fb" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#05060d" media="(prefers-color-scheme: dark)">
+  <title>Fuel & Maintenance Tracker</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg:#f2f2f7; --card:#ffffff; --fill:#f2f2f7; --fill2:#e5e5ea; --thumb:#ffffff;
+      --text:#000000; --text2:#636366; --text3:#8e8e93; --sep:rgba(60,60,67,.16);
+      --blue:#007aff; --green:#34c759; --orange:#ff9500; --red:#ff3b30;
+      --teal:#30b0c7; --purple:#af52de; --indigo:#5856d6;
+      --glass:rgba(249,249,249,.80); --shadow:0 1px 2px rgba(0,0,0,.04),0 6px 20px rgba(0,0,0,.05);
+      --ease:cubic-bezier(.22,.9,.3,1);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg:#000000; --card:#1c1c1e; --fill:#2c2c2e; --fill2:#3a3a3c; --thumb:#636366;
+        --text:#ffffff; --text2:#aeaeb2; --text3:#8e8e93; --sep:rgba(84,84,88,.55);
+        --blue:#0a84ff; --green:#30d158; --orange:#ff9f0a; --red:#ff453a;
+        --teal:#40c8e0; --purple:#bf5af2; --indigo:#5e5ce6;
+        --glass:rgba(28,28,30,.80); --shadow:none;
+      }
+    }
+    * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    html { -webkit-text-size-adjust:100%; }
+    body {
+      margin:0; background:var(--bg); color:var(--text);
+      font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Prompt','Inter',sans-serif;
+      font-size:15px; line-height:1.4; -webkit-font-smoothing:antialiased; min-height:100vh;
+    }
+    button { font-family:inherit; cursor:pointer; }
+    .hidden { display:none !important; }
+
+    .app { max-width:520px; margin:0 auto; padding:max(env(safe-area-inset-top),8px) 16px calc(92px + env(safe-area-inset-bottom)); }
+    .large-title { padding:20px 4px 14px; }
+    .large-title h1 { margin:0; font-size:32px; font-weight:700; letter-spacing:-.02em; line-height:1.15; }
+    .large-title p { margin:4px 0 0; color:var(--text3); font-size:14px; }
+    .stack > * + * { margin-top:14px; }
+    .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+
+    .sec { display:none; }
+    .sec.on { display:block; animation:secIn .4s var(--ease); }
+    @keyframes secIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:none; } }
+
+    .card { background:var(--card); border-radius:20px; padding:16px; box-shadow:var(--shadow); }
+    .pressable { transition:transform .22s var(--ease), opacity .2s; }
+    .pressable:active { transform:scale(.97); opacity:.9; }
+    .lbl { font-size:12px; font-weight:500; color:var(--text2); }
+    .big { font-size:26px; font-weight:700; letter-spacing:-.02em; font-variant-numeric:tabular-nums; margin-top:2px; }
+    .big.xl { font-size:36px; }
+    .unit { font-size:13px; font-weight:400; color:var(--text3); letter-spacing:0; }
+    .sub { margin-top:10px; padding-top:8px; border-top:.5px solid var(--sep); display:flex; justify-content:space-between; font-size:12px; color:var(--text2); gap:6px; }
+    .sub b { color:var(--text); font-variant-numeric:tabular-nums; }
+    .foot { margin:10px 0 0; font-size:11.5px; color:var(--text3); line-height:1.5; }
+    .c-blue{color:var(--blue)} .c-green{color:var(--green)} .c-orange{color:var(--orange)} .c-red{color:var(--red)} .c-teal{color:var(--teal)} .c-purple{color:var(--purple)}
+
+    .split { display:flex; flex-wrap:wrap; gap:4px 14px; font-size:12.5px; color:var(--text2); margin-top:6px; }
+    .split b { color:var(--text); font-weight:600; }
+    .kpis { display:grid; grid-template-columns:repeat(3,1fr); margin-top:14px; padding-top:12px; border-top:.5px solid var(--sep); text-align:center; }
+    .kpis > div + div { border-left:.5px solid var(--sep); }
+    .kpis .k { font-size:10.5px; color:var(--text3); }
+    .kpis .v { font-size:15px; font-weight:600; font-variant-numeric:tabular-nums; margin-top:2px; }
+    .kpis .u { font-size:10px; color:var(--text3); }
+
+    .bar { height:6px; border-radius:99px; background:var(--fill2); overflow:hidden; margin-top:12px; }
+    .bar > i { display:block; height:100%; width:0; border-radius:99px; background:var(--orange); transition:width .8s var(--ease), background .3s; }
+
+    .pill { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:99px; font-size:11px; font-weight:600; white-space:nowrap; }
+    .pill.blue { background:color-mix(in srgb,var(--blue) 15%,transparent); color:var(--blue); }
+    .pill.green { background:color-mix(in srgb,var(--green) 16%,transparent); color:var(--green); }
+    .pill.orange { background:color-mix(in srgb,var(--orange) 16%,transparent); color:var(--orange); }
+    .pill.red { background:color-mix(in srgb,var(--red) 15%,transparent); color:var(--red); }
+    .pill.gray { background:var(--fill); color:var(--text2); }
+
+    .list { background:var(--card); border-radius:16px; overflow:hidden; box-shadow:var(--shadow); }
+    .li { display:flex; gap:12px; align-items:center; padding:12px 14px; position:relative; }
+    .li + .li::before { content:''; position:absolute; top:0; left:60px; right:0; height:.5px; background:var(--sep); }
+    .li.noicon + .li.noicon::before { left:14px; }
+    .li .grow { flex:1; min-width:0; }
+    .t1 { font-size:15px; font-weight:600; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+    .t2 { font-size:12.5px; color:var(--text2); margin-top:1px; }
+    .t3 { font-size:11.5px; color:var(--text3); margin-top:1px; }
+    .ico { width:36px; height:36px; border-radius:10px; display:grid; place-items:center; color:#fff; font-size:17px; flex:none; }
+    .ib { width:34px; height:34px; border:0; border-radius:50%; background:transparent; color:var(--blue); font-size:17px; display:grid; place-items:center; transition:background .2s, transform .2s var(--ease); }
+    .ib.danger { color:var(--red); }
+    .ib:active { background:var(--fill); transform:scale(.9); }
+    .acts { display:flex; flex:none; }
+
+    .cap { font-size:13px; color:var(--text2); padding:0 16px 6px; margin-top:20px; }
+    .cap:first-child { margin-top:0; }
+    .group { background:var(--card); border-radius:16px; overflow:hidden; box-shadow:var(--shadow); }
+    .frow { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:11px 16px; min-height:48px; position:relative; }
+    .frow + .frow::before { content:''; position:absolute; top:0; left:16px; right:0; height:.5px; background:var(--sep); }
+    .frow > label, .frow > .fl { font-size:15px; flex:none; }
+    .frow input:not([type=checkbox]):not([type=radio]), .frow select {
+      border:0; background:transparent; color:var(--text); font:inherit; font-size:16px;
+      text-align:right; min-width:0; flex:1; outline:none; padding:0; appearance:none; -webkit-appearance:none;
+    }
+    .frow input::placeholder, .frow textarea::placeholder { color:var(--text3); }
+    .frow.block { display:block; }
+    .frow textarea { width:100%; border:0; background:transparent; color:var(--text); font:inherit; font-size:16px; outline:none; resize:none; padding:0; }
+    .hint { font-size:12px; color:var(--text3); padding:6px 16px 0; line-height:1.4; }
+
+    .seg { display:flex; background:var(--fill2); padding:2px; border-radius:10px; gap:2px; }
+    .seg > label, .seg > button { flex:1; text-align:center; border:0; background:none; padding:0; margin:0; }
+    .seg input { display:none; }
+    .seg span, .seg > button { display:block; padding:7px 12px; border-radius:8px; font-size:13px; font-weight:600; color:var(--text); transition:background .25s var(--ease), box-shadow .25s; cursor:pointer; }
+    .seg input:checked + span, .seg > button.on { background:var(--thumb); box-shadow:0 1px 4px rgba(0,0,0,.18); }
+    .seg.sm span, .seg.sm > button { padding:4px 10px; font-size:12px; }
+
+    .switch { position:relative; width:51px; height:31px; flex:none; }
+    .switch { display:block; cursor:pointer; -webkit-user-select:none; user-select:none; touch-action:manipulation; }
+    .switch::before { content:''; position:absolute; inset:-8px -6px; }   /* ขยายพื้นที่แตะ */
+    .switch input { position:absolute; inset:0; width:100%; height:100%; margin:0; opacity:0; cursor:pointer; z-index:1; }
+    .slider { position:absolute; inset:0; background:var(--fill2); border-radius:99px; transition:background .3s; cursor:pointer; }
+    .slider::after { content:''; position:absolute; top:2px; left:2px; width:27px; height:27px; border-radius:50%; background:#fff; box-shadow:0 2px 5px rgba(0,0,0,.28); transition:transform .3s var(--ease); }
+    .switch input:checked + .slider { background:var(--green); }
+    .switch input:checked + .slider::after { transform:translateX(20px); }
+    .switch input:disabled + .slider { opacity:.4; }
+
+    .btn { width:100%; height:50px; border:0; border-radius:14px; font-size:17px; font-weight:600; color:#fff; background:var(--blue); transition:transform .2s var(--ease), opacity .2s; }
+    .btn:active { transform:scale(.97); opacity:.88; }
+    .btn:disabled { opacity:.45; }
+    .btn.green { background:var(--green); } .btn.orange { background:var(--orange); }
+    .btn.gray { background:var(--fill2); color:var(--text); }
+    .btn.sm { height:40px; font-size:15px; border-radius:12px; }
+    .btn-row { display:flex; gap:10px; margin-top:16px; }
+    .btn-row .gray { width:36%; }
+
+    .preview { background:color-mix(in srgb,var(--blue) 10%,transparent); border-radius:14px; padding:12px 16px; font-size:14px; }
+    .preview .r { display:flex; justify-content:space-between; align-items:center; padding:3px 0; color:var(--text2); }
+    .preview .r b { color:var(--text); font-variant-numeric:tabular-nums; }
+    .preview .r.total { border-top:.5px solid var(--sep); margin-top:4px; padding-top:8px; font-weight:600; }
+    .preview .r.total b { color:var(--blue); font-size:17px; }
+    .preview input { width:78px; border:0; border-radius:8px; background:var(--card); color:var(--text); font:inherit; font-size:15px; font-weight:600; text-align:right; padding:3px 8px; outline:none; }
+
+    .chips { display:flex; gap:8px; overflow-x:auto; padding:2px 0 4px; scrollbar-width:none; }
+    .chips::-webkit-scrollbar { display:none; }
+    .chip { flex:none; border:0; background:var(--fill2); color:var(--text); border-radius:99px; padding:6px 12px; font-size:13px; transition:transform .2s var(--ease), background .2s; }
+    .chip:active { transform:scale(.93); background:var(--blue); color:#fff; }
+
+    .banner { display:flex; gap:10px; align-items:flex-start; background:color-mix(in srgb,var(--orange) 14%,transparent); border-radius:14px; padding:12px 14px; font-size:13px; line-height:1.45; }
+    .banner i { color:var(--orange); font-size:18px; margin-top:1px; }
+    .banner b { font-weight:600; }
+    .empty { text-align:center; color:var(--text3); font-size:14px; padding:28px 12px; }
+    .empty i { display:block; font-size:30px; margin-bottom:6px; opacity:.6; }
+    .sk { height:62px; border-radius:14px; background:linear-gradient(90deg,var(--fill) 25%,var(--fill2) 50%,var(--fill) 75%); background-size:200% 100%; animation:shimmer 1.3s infinite linear; }
+    .sk + .sk { margin-top:8px; }
+    @keyframes shimmer { to { background-position:-200% 0; } }
+
+    .selectpill { appearance:none; -webkit-appearance:none; border:0; background:var(--fill2); color:var(--blue); font:inherit; font-size:13px; font-weight:600; padding:6px 28px 6px 12px; border-radius:99px; outline:none;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238e8e93' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat:no-repeat; background-position:right 11px center; }
+    .row-between { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+    .h2 { font-size:19px; font-weight:700; letter-spacing:-.01em; margin:0; }
+
+    .tabbar { position:fixed; left:0; right:0; bottom:0; z-index:50; background:var(--glass); backdrop-filter:saturate(180%) blur(24px); -webkit-backdrop-filter:saturate(180%) blur(24px); border-top:.5px solid var(--sep); padding-bottom:env(safe-area-inset-bottom); }
+    .tabbar-in { display:flex; max-width:520px; margin:0 auto; }
+    .tab { flex:1; border:0; background:none; padding:8px 0 6px; color:var(--text3); font-size:10.5px; font-weight:500; display:flex; flex-direction:column; align-items:center; gap:2px; position:relative; transition:color .2s; }
+    .tab i { font-size:23px; line-height:1.1; transition:transform .3s var(--ease); }
+    .tab.on { color:var(--blue); }
+    .tab.on i { transform:scale(1.1); }
+    .tab:active i { transform:scale(.88); }
+    .tab-badge { position:absolute; top:3px; left:calc(50% + 6px); min-width:17px; height:17px; padding:0 5px; border-radius:99px; background:var(--red); color:#fff; font-size:11px; font-weight:600; display:grid; place-items:center; }
+
+    .swal2-popup { background:var(--card) !important; color:var(--text) !important; border-radius:22px !important; font-family:inherit !important; box-shadow:0 24px 70px rgba(0,0,0,.35) !important; }
+    .swal2-title { font-size:19px !important; font-weight:600 !important; color:var(--text) !important; }
+    .swal2-html-container { color:var(--text2) !important; font-size:14px !important; }
+    .swal2-styled { border-radius:12px !important; font-weight:600 !important; box-shadow:none !important; font-size:16px !important; }
+    .swal2-input { background:var(--fill) !important; color:var(--text) !important; border:0 !important; border-radius:12px !important; box-shadow:none !important; font-size:16px !important; }
+    .swal2-validation-message { background:transparent !important; color:var(--red) !important; }
+    .swal2-toast { border-radius:99px !important; padding:10px 18px !important; background:var(--glass) !important; backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); box-shadow:0 8px 30px rgba(0,0,0,.2) !important; }
+    .swal2-toast .swal2-title { font-size:14px !important; margin:0 8px !important; }
+
+    /* มุมมองสำหรับครอบครัว (?view=family): ซ่อนส่วนซ่อมบำรุงทั้งหมด */
+    .family .owner-only { display:none !important; }
+
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation:none !important; transition:none !important; } }
+
+    /* ============================================================
+       Liquid Glass theme + ปุ่มใหญ่กดง่ายบนมือถือ
+       (สีและสไตล์อ้างอิงจาก Hub.html / TBPG App Hub)
+       ============================================================ */
+    :root {
+      --bg:#eef1fb; --solid:#f4f6fd;
+      --card:rgba(255,255,255,.62); --glass:rgba(255,255,255,.58); --glass-brd:rgba(255,255,255,.75);
+      --glass-hi:inset 0 1px 0 rgba(255,255,255,.95);
+      --glass-sh:0 10px 34px rgba(40,50,120,.12), 0 1px 2px rgba(0,0,0,.04);
+      --fill:rgba(110,120,150,.12); --fill2:rgba(110,120,150,.20); --thumb:#ffffff;
+      --text:#1d1d1f; --text2:rgba(29,29,31,.66); --text3:rgba(29,29,31,.46);
+      --sep:rgba(60,60,90,.13); --shadow:none;
+      --title-grad:linear-gradient(120deg,#0a84ff 0%,#5e5ce6 55%,#bf5af2 100%);
+      --g1:rgba(10,132,255,.20); --g2:rgba(191,90,242,.16); --g3:rgba(100,210,255,.20); --g4:rgba(255,100,130,.12);
+      --spring:cubic-bezier(.34,1.56,.64,1); --smooth:cubic-bezier(.22,1,.36,1);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg:#05060d; --solid:#15171f;
+        --card:rgba(255,255,255,.08); --glass:rgba(255,255,255,.08); --glass-brd:rgba(255,255,255,.16);
+        --glass-hi:inset 0 1px 0 rgba(255,255,255,.20);
+        --glass-sh:0 12px 40px rgba(0,0,0,.50), 0 1px 2px rgba(0,0,0,.3);
+        --fill:rgba(255,255,255,.07); --fill2:rgba(255,255,255,.13); --thumb:rgba(255,255,255,.30);
+        --text:#f5f5f7; --text2:rgba(245,245,247,.62); --text3:rgba(245,245,247,.40);
+        --sep:rgba(255,255,255,.12);
+        --title-grad:linear-gradient(120deg,#9bd0ff 0%,#0a84ff 40%,#bf5af2 78%,#ff6482 100%);
+        --g1:rgba(10,132,255,.34); --g2:rgba(191,90,242,.26); --g3:rgba(100,210,255,.20); --g4:rgba(255,100,130,.18);
+      }
+    }
+    body { font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','IBM Plex Sans Thai','Sukhumvit Set','Prompt','Noto Sans Thai',sans-serif; }
+
+    /* พื้นหลัง: แสงเรืองลอยช้าๆ ให้กระจกมีอะไรให้หักเห */
+    body::before {
+      content:''; position:fixed; inset:-25%; z-index:-1; pointer-events:none;
+      background:
+        radial-gradient(40% 32% at 18% 14%, var(--g1), transparent 70%),
+        radial-gradient(38% 30% at 86% 24%, var(--g2), transparent 70%),
+        radial-gradient(42% 34% at 74% 88%, var(--g3), transparent 70%),
+        radial-gradient(34% 28% at 12% 80%, var(--g4), transparent 70%);
+      animation:drift 26s ease-in-out infinite alternate; will-change:transform;
+    }
+    @keyframes drift { from { transform:translate3d(-2%,-1%,0) scale(1); } to { transform:translate3d(2%,2%,0) scale(1.08); } }
+
+    .app { padding-bottom:calc(120px + env(safe-area-inset-bottom)); }
+    .large-title h1 { line-height:1.5; padding:.14em 0 .1em; margin:-.14em 0 -.1em; background:var(--title-grad); -webkit-background-clip:text; background-clip:text; color:transparent; -webkit-text-fill-color:transparent; }
+
+    /* พื้นผิวกระจก */
+    .card, .list, .group, .preview, .banner, .tabbar, .btn-row {
+      -webkit-backdrop-filter:blur(28px) saturate(1.9); backdrop-filter:blur(28px) saturate(1.9);
+    }
+    .card, .list, .group { background:var(--glass); border:.5px solid var(--glass-brd); box-shadow:var(--glass-hi), var(--glass-sh); }
+    .card { border-radius:26px; padding:18px; }
+    .list, .group { border-radius:24px; }
+    .preview { border:.5px solid var(--glass-brd); box-shadow:var(--glass-hi); border-radius:22px; background:color-mix(in srgb,var(--blue) 12%,var(--glass)); }
+    .banner { border:.5px solid var(--glass-brd); box-shadow:var(--glass-hi); border-radius:22px; background:color-mix(in srgb,var(--orange) 16%,var(--glass)); }
+    .pressable { transition:transform .45s var(--spring), opacity .2s; }
+    .pressable:active { transform:scale(.96); }
+
+    .ico { border-radius:13px; width:40px; height:40px; position:relative; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,.18); }
+    .ico::after { content:''; position:absolute; inset:0; background:linear-gradient(160deg,rgba(255,255,255,.34),rgba(255,255,255,0) 62%); pointer-events:none; }
+    .li { padding:14px 16px; }
+    .li + .li::before { left:68px; }
+
+    /* ---- ขนาดจุดสัมผัส (อย่างน้อย 44px ตามแนวทาง Apple) ---- */
+    .ib { width:44px; height:44px; margin:-6px -3px; font-size:20px; }
+    .frow { min-height:54px; padding:12px 18px; }
+    .frow input:not([type=checkbox]):not([type=radio]), .frow select { font-size:17px; min-height:30px; }
+    .frow textarea { font-size:17px; }
+    .seg { border-radius:16px; padding:3px; background:var(--fill2); }
+    .seg span, .seg > button { padding:11px 14px; min-height:44px; display:flex; align-items:center; justify-content:center; font-size:15px; border-radius:13px; }
+    .seg.sm span, .seg.sm > button { padding:8px 14px; min-height:36px; font-size:13px; }
+    .seg input:checked + span, .seg > button.on { background:var(--thumb); box-shadow:var(--glass-hi), 0 2px 8px rgba(0,0,0,.18); }
+    .chip { min-height:40px; padding:0 16px; font-size:14px; background:var(--glass); border:.5px solid var(--glass-brd); box-shadow:var(--glass-hi); color:var(--text); }
+    .selectpill { min-height:40px; font-size:14px; padding:0 34px 0 16px; background-color:var(--glass); border:.5px solid var(--glass-brd); background-position:right 14px center; }
+    .switch { width:56px; height:34px; }
+    .slider::after { width:30px; height:30px; }
+    .switch input:checked + .slider::after { transform:translateX(22px); }
+    .slider { background:var(--fill2); box-shadow:inset 0 0 0 .5px var(--sep); }
+
+    .btn { height:54px; border-radius:27px; font-size:17px; letter-spacing:.2px;
+      background:linear-gradient(180deg,color-mix(in srgb,var(--blue) 82%,#fff),var(--blue));
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.4), 0 8px 22px color-mix(in srgb,var(--blue) 42%,transparent);
+      transition:transform .45s var(--spring), opacity .2s; }
+    .btn.green { background:linear-gradient(180deg,color-mix(in srgb,var(--green) 82%,#fff),var(--green)); box-shadow:inset 0 1px 0 rgba(255,255,255,.4), 0 8px 22px color-mix(in srgb,var(--green) 40%,transparent); }
+    .btn.orange { background:linear-gradient(180deg,color-mix(in srgb,var(--orange) 82%,#fff),var(--orange)); box-shadow:inset 0 1px 0 rgba(255,255,255,.4), 0 8px 22px color-mix(in srgb,var(--orange) 40%,transparent); }
+    .btn.gray { background:var(--fill2); color:var(--text); box-shadow:inset 0 1px 0 rgba(255,255,255,.2); }
+    .btn:active { transform:scale(.96); }
+    .btn.sm { height:48px; border-radius:24px; }
+
+    /* แถบปุ่มบันทึกลอยค้างเหนือแท็บบาร์ — นิ้วโป้งกดได้ตลอด ไม่ต้องเลื่อนลงสุดฟอร์ม */
+    .btn-row { position:sticky; bottom:calc(92px + env(safe-area-inset-bottom)); z-index:30; margin:18px -6px 0; padding:8px;
+      border-radius:34px; background:color-mix(in srgb,var(--solid) 78%,transparent); border:.5px solid var(--glass-brd); box-shadow:var(--glass-hi), var(--glass-sh); }
+
+    /* แท็บบาร์ลอยแบบแคปซูล Liquid Glass */
+    .tabbar { left:50%; right:auto; transform:translateX(-50%); width:calc(100% - 24px); max-width:496px;
+      bottom:calc(10px + env(safe-area-inset-bottom)); padding:6px; border-radius:32px;
+      background:var(--glass); border:.5px solid var(--glass-brd); box-shadow:var(--glass-hi), 0 14px 44px rgba(0,0,0,.28); }
+    .tabbar-in { gap:4px; }
+    .tab { min-height:58px; padding:8px 0 6px; border-radius:26px; font-size:11px; transition:color .2s, background .35s var(--smooth); }
+    .tab i { font-size:24px; }
+    .tab.on { background:color-mix(in srgb,var(--blue) 18%,transparent); box-shadow:inset 0 0 0 .5px color-mix(in srgb,var(--blue) 30%,transparent); }
+    .tab-badge { top:4px; left:calc(50% + 8px); }
+
+    /* กล่องข้อความ SweetAlert แบบกระจก */
+    .swal2-container.swal2-backdrop-show, .swal2-container { background:rgba(0,0,0,.28) !important; -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); }
+    .swal2-popup { background:var(--solid) !important; border:.5px solid var(--glass-brd) !important; border-radius:28px !important; }
+    .swal2-styled { min-height:48px !important; border-radius:24px !important; }
+    /* Toast (แจ้งเตือนบันทึกแล้ว) ต้องไม่มีฉากหลังดำ/เบลอ — ไม่งั้นเป็นแถบดำจางๆ ทั้งแนวตั้ง */
+    body.swal2-toast-shown .swal2-container,
+    .swal2-container.swal2-no-backdrop { background:transparent !important; -webkit-backdrop-filter:none !important; backdrop-filter:none !important; }
+
+    @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))) {
+      .card, .list, .group, .tabbar, .btn-row, .chip, .selectpill { background:var(--solid) !important; }
+    }
+    @media (prefers-reduced-transparency: reduce) {
+      .card, .list, .group, .tabbar, .btn-row, .chip, .selectpill, .preview, .banner { background:var(--solid) !important; -webkit-backdrop-filter:none; backdrop-filter:none; }
+      body::before { display:none; }
+    }
+    /* แท็บซ่อมบำรุง/ตารางเช็คผุดออกมาแบบสปริงเมื่อกด ••• */
+    .tab.owner-only { animation:tabIn .5s var(--spring) both; }
+    @keyframes tabIn { from { opacity:0; transform:scale(.6); } to { opacity:1; transform:none; } }
+    .tab-more { flex:0 0 46px; border:0; background:none; color:var(--text3); display:grid; place-items:center; min-height:58px; border-radius:26px; transition:transform .45s var(--spring), color .2s; }
+    .tab-more i { width:30px; height:30px; border-radius:50%; background:var(--fill); display:grid; place-items:center; font-size:16px; transition:transform .5s var(--spring), background .25s; }
+    .tab-more[aria-expanded="true"] { color:var(--blue); }
+    .tab-more[aria-expanded="true"] i { transform:rotate(90deg); background:color-mix(in srgb,var(--blue) 18%,transparent); }
+    .tab-more:active { transform:scale(.88); }
+    .grid2 .big { font-size:22px; white-space:nowrap; }
+    .grid2 .big .unit { font-size:12px; }
+    .chips.wrap { flex-wrap:wrap; overflow:visible; }
+    .btn-row { align-items:center; gap:8px; }
+    .btn-row .btn { flex:1; width:auto; }
+    .btn-row .btn.gray { flex:0 0 27%; width:auto; }
+    .bar-net { display:flex; flex-direction:column; padding:0 8px 0 10px; min-width:96px; line-height:1.2; }
+    .bar-net span { font-size:11px; color:var(--text2); }
+    .bar-net b { font-size:17px; font-variant-numeric:tabular-nums; color:var(--blue); }
+    @media (max-width:360px) { .app { padding-left:12px; padding-right:12px; } .big.xl { font-size:32px; } }
+  </style>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" type="image/png" href="./icons/icon-192.png">
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Fuel">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <!-- ===== PWA: ตัวเชื่อม google.script.run -> Apps Script Web App (fetch) ===== -->
+  <script>
+    // แก้ 2 ค่านี้ให้ตรงกับของคุณ (ค่าเดียวกับใน Code.gs)
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbzhJlN4YdzbzpriifHRjJui07RWR93vFdFVCnGRJaRznoOhvQBMgTcPV9HJu5ZhtaiZrg/exec';
+    const API_KEY = 'PPgunP@ssw0rd';
+
+    (function () {
+      function makeRunner(onOk, onFail) {
+        return new Proxy({}, {
+          get(_, prop) {
+            if (prop === 'withSuccessHandler') return (fn) => makeRunner(fn, onFail);
+            if (prop === 'withFailureHandler') return (fn) => makeRunner(onOk, fn);
+            return (...args) => {
+              fetch(GAS_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // ไม่ให้เกิด preflight
+                body: JSON.stringify({ key: API_KEY, fn: String(prop), args: args })
+              })
+                .then((r) => r.json())
+                .then((j) => {
+                  if (!j.ok) throw new Error(j.error || 'เกิดข้อผิดพลาดที่เซิร์ฟเวอร์');
+                  if (onOk) onOk(j.data);
+                })
+                .catch((err) => { if (onFail) onFail(err); else console.error(err); });
+            };
+          }
+        });
+      }
+      window.google = { script: { run: makeRunner(null, null) } };
+    })();
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+    }
+  </script>
+</head>
+<body>
+
+<main class="app">
+
+  <!-- ========== หน้าแรก ========== -->
+  <section id="sectionDashboard" class="sec on stack">
+    <header class="large-title">
+      <h1>ภาพรวม</h1>
+      <p id="todayLabel">&nbsp;</p>
+    </header>
+
+    <div id="dataWarning" class="banner pressable hidden" onclick="goToAnomalies()"></div>
+
+    <div class="card">
+      <div class="lbl" id="statCombinedLabel">ค่าใช้จ่ายรวมรถทั้งคัน · เดือนนี้</div>
+      <div class="big xl"><span id="statCombinedThisMonth">0.00</span> <span class="unit">บาท</span></div>
+      <div class="split owner-only">
+        <span><i class="bi bi-fuel-pump-fill c-blue"></i> เชื้อเพลิง <b id="statCombinedFuelPart">0.00</b></span>
+        <span><i class="bi bi-tools c-green"></i> ซ่อมบำรุง <b id="statCombinedMaintPart">0.00</b></span>
+      </div>
+      <div class="kpis">
+        <div><div class="k">เดือนนี้</div><div class="v" id="statCombinedBahtPerKmMonth">-</div><div class="u">บ./กม.</div></div>
+        <div><div class="k">1 ปีล่าสุด</div><div class="v" id="statCombinedBahtPerKmYear">-</div><div class="u">บ./กม.</div></div>
+        <div><div class="k">ตลอดการใช้งาน</div><div class="v" id="statCombinedBahtPerKm">-</div><div class="u">บ./กม.</div></div>
+      </div>
+      <p class="foot" id="statCostNote"></p>
+    </div>
+
+    <div class="grid2">
+      <div class="card owner-only">
+        <div class="lbl">เชื้อเพลิงเดือนนี้</div>
+        <div class="big"><span id="statThisMonth">0.00</span> <span class="unit">บาท</span></div>
+        <div class="sub"><span>เฉลี่ย</span><b id="statAvgBahtPerKm">-</b></div>
+      </div>
+      <div class="card">
+        <div class="lbl" id="statAvgPeriodLabel">เฉลี่ยรายเดือน</div>
+        <div class="big"><span id="statAvgMonthlySpend">0.00</span> <span class="unit">บ./ด.</span></div>
+        <div class="sub"><span>ไมล์ล่าสุด</span><b id="statLatestMileage">0 กม.</b></div>
+      </div>
+      <div class="card">
+        <div class="row-between">
+          <div class="lbl">LPG เหลือ</div>
+          <div style="display:flex;align-items:center;gap:2px">
+            <span id="statLpgPercent" class="pill orange">0%</span>
+            <button class="ib" style="width:28px;height:28px;font-size:15px" onclick="editLpgManual()" aria-label="แก้ไข"><i class="bi bi-pencil-square"></i></button>
+          </div>
+        </div>
+        <div class="big"><span id="statLpgLiters">0</span> <span class="unit">/ 200 ลิตร</span></div>
+        <div class="bar"><i id="statLpgBar"></i></div>
+      </div>
+      <div class="card pressable owner-only" onclick="navigateToPendingMaint()">
+        <div class="row-between"><div class="lbl">ซ่อมบำรุงเร็วๆนี้</div><i class="bi bi-chevron-right c-red" style="font-size:13px"></i></div>
+        <div class="big" id="statOverdueMaint">0 <span class="unit">รายการ</span></div>
+        <div class="sub"><span>แตะเพื่อดูรายการ</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="lbl" style="margin-bottom:8px">อัตราสิ้นเปลืองเชื้อเพลิง</div>
+      <div id="kmlGrid" class="grid2" style="gap:10px">
+        <div id="kmlGasolineBlock">
+          <div class="lbl"><i class="bi bi-fuel-pump-fill c-blue"></i> น้ำมัน</div>
+          <div class="big" style="font-size:20px;color:var(--teal)" id="statKmlGasoline">ข้อมูลไม่พอ</div>
+          <div class="t3">1 ปี: <span id="statKmlGasolineYear">-</span></div>
+        </div>
+        <div>
+          <div class="lbl"><i class="bi bi-fire c-orange"></i> LPG</div>
+          <div class="big" style="font-size:20px;color:var(--teal)" id="statKmlLpg">ข้อมูลไม่พอ</div>
+          <div class="t3">1 ปี: <span id="statKmlLpgYear">-</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="owner-only">
+      <div class="cap">รายการซ่อมบำรุงที่แนะนำ</div>
+      <div id="recommendedMaintList" class="list"></div>
+      <div class="hint">คำนวณจากเลขไมล์ล่าสุด แสดงเฉพาะที่เกินกำหนดหรือเหลือไม่เกิน 3,000 กม.</div>
+    </div>
+
+    <div class="card">
+      <div class="row-between" style="margin-bottom:10px">
+        <h2 class="h2">ค่าใช้จ่ายรายเดือน</h2>
+        <select id="chartFilter" onchange="updateChart()" class="selectpill">
+          <option value="6">6 เดือน</option>
+          <option value="12" selected>1 ปี</option>
+          <option value="all">ทั้งหมด</option>
+        </select>
+      </div>
+      <div style="position:relative;height:250px"><canvas id="expenseChart"></canvas></div>
+    </div>
+  </section>
+
+  <!-- ========== เติมเชื้อเพลิง ========== -->
+  <section id="sectionForm" class="sec">
+    <header class="large-title"><h1 id="formTitle">เติมเชื้อเพลิง</h1><p>บันทึกการเติมแต่ละครั้ง</p></header>
+
+    <form id="fuelForm" onsubmit="handleSubmit(event)">
+      <input type="hidden" id="recordId">
+
+      <div class="group">
+        <div class="frow"><label for="date">วันที่เติม</label><input type="date" id="date" required oninput="handleDateChangeForMileage()"></div>
+        <div class="frow">
+          <label for="mileage">เลขกิโลเมตร</label>
+          <input type="number" inputmode="numeric" id="mileage" placeholder="เช่น 124500" oninput="updateMileageHint()" class="hidden">
+          <input type="number" inputmode="numeric" id="mileageTripInput" required placeholder="เช่น 350" oninput="handleTripInput()">
+        </div>
+        <div class="frow">
+          <span class="fl">รูปแบบเลขไมล์</span>
+          <div class="seg sm">
+            <button type="button" id="mileageModeOdoBtn" onclick="setMileageMode('odo')">สะสม</button>
+            <button type="button" id="mileageModeTripBtn" class="on" onclick="setMileageMode('trip')">วิ่งได้</button>
+          </div>
+        </div>
+      </div>
+      <div class="hint" id="mileageHint"></div>
+
+      <div class="cap">ประเภทเชื้อเพลิง</div>
+      <div class="seg" style="border-radius:12px">
+        <label><input type="radio" name="fuelType" value="Gasoline" onchange="toggleLpgDiscountView(); triggerCalculation();"><span>Gasoline</span></label>
+        <label><input type="radio" name="fuelType" value="LPG" checked onchange="toggleLpgDiscountView(); triggerCalculation();"><span>LPG</span></label>
+      </div>
+
+      <div id="lpgDiscountContainer" class="group" style="margin-top:14px">
+        <div class="frow">
+          <label for="hasLpgDiscount">ส่วนลดลิตรละ 0.5 บาท (ปั๊มนี้)</label>
+          <label class="switch"><input type="checkbox" id="hasLpgDiscount" checked onchange="triggerCalculation()"><span class="slider"></span></label>
+        </div>
+      </div>
+
+      <div class="cap">จำนวนเงิน</div>
+      <div class="group">
+        <div class="frow"><label for="totalPaid">เงินที่เติม (บาท)</label><input type="number" inputmode="decimal" id="totalPaid" step="any" required oninput="triggerCalculation()" placeholder="0.00"></div>
+        <div class="frow"><label for="pricePerLiter">ราคาต่อลิตร (บาท)</label><input type="number" inputmode="decimal" id="pricePerLiter" step="any" required oninput="triggerCalculation()" placeholder="0.00"></div>
+      </div>
+
+      <div class="chips wrap" style="margin-top:10px">
+        <button type="button" class="chip" onclick="setAmount(200)">฿200</button>
+        <button type="button" class="chip" onclick="setAmount(300)">฿300</button>
+        <button type="button" class="chip" onclick="setAmount(500)">฿500</button>
+        <button type="button" class="chip" onclick="setAmount(800)">฿800</button>
+        <button type="button" class="chip" onclick="setAmount(1000)">฿1,000</button>
+        <button type="button" class="chip" id="lastPriceChip" onclick="useLastPrice()" style="display:none"></button>
+      </div>
+
+      <div class="preview" style="margin-top:14px">
+        <div class="r"><span>จำนวนลิตร</span><b id="viewLiters">0.00 ลิตร</b></div>
+        <div class="r">
+          <span>ส่วนลดที่ได้</span>
+          <span style="display:flex;align-items:center;gap:6px">
+            <button type="button" id="discountResetBtn" onclick="resetDiscountOverride()" class="ib hidden" style="width:26px;height:26px;font-size:14px" aria-label="คำนวณอัตโนมัติ"><i class="bi bi-arrow-counterclockwise"></i></button>
+            <input type="number" inputmode="decimal" id="discountInput" step="any" min="0" oninput="handleDiscountInput()" placeholder="0"><b>บาท</b>
+          </span>
+        </div>
+        <div class="r total"><span>ยอดสุทธิ</span><b id="viewNetPaid">0.00 บาท</b></div>
+      </div>
+
+      <div class="btn-row">
+        <div class="bar-net"><span>ยอดสุทธิ</span><b id="barNetPaid">0.00</b></div>
+        <button type="button" id="cancelEditBtn" onclick="resetForm()" class="btn gray hidden">ยกเลิก</button>
+        <button type="submit" id="submitBtn" class="btn">บันทึกข้อมูล</button>
+      </div>
+    </form>
+
+    <div style="margin-top:28px">
+      <div class="row-between" style="margin-bottom:10px;padding:0 4px">
+        <h2 class="h2">ประวัติการเติม</h2>
+        <select id="historyMonthFilter" onchange="renderHistory()" class="selectpill"></select>
+      </div>
+      <div id="historyContainer"><div class="sk"></div><div class="sk"></div><div class="sk"></div></div>
+    </div>
+  </section>
+
+  <!-- ========== ซ่อมบำรุง ========== -->
+  <section id="sectionMaint" class="sec owner-only">
+    <header class="large-title"><h1 id="maintFormTitle">ซ่อมบำรุง</h1><p>บันทึกและติดตามรอบการเช็ค</p></header>
+
+    <form id="maintForm" onsubmit="handleMaintSubmit(event)">
+      <input type="hidden" id="maintId">
+      <input type="hidden" id="maintStatus" value="N">
+
+      <div class="group">
+        <div class="frow"><label for="maintDate">วันที่ดำเนินการ</label><input type="date" id="maintDate" required></div>
+        <div class="frow"><label for="maintMileage">เลขกิโลเมตร</label><input type="number" inputmode="numeric" id="maintMileage" required oninput="calcNextDueMileage()" placeholder="เช่น 124500"></div>
+        <div class="frow">
+          <label for="maintCategory">ประเภทบริการ</label>
+          <select id="maintCategory" required style="direction:rtl">
+            <option value="เช็คระยะ">เช็คระยะ</option>
+            <option value="ระบบ LPG">ระบบ LPG</option>
+            <option value="ยาง">ยาง</option>
+            <option value="แบตเตอรี่">แบตเตอรี่</option>
+            <option value="ภาษี">ภาษี/พรบ.</option>
+            <option value="ซ่อมแซมทั่วไป">ซ่อมแซมทั่วไป</option>
+          </select>
+        </div>
+        <div class="frow"><label for="maintCost">ค่าใช้จ่าย (บาท)</label><input type="number" inputmode="decimal" id="maintCost" step="any" required placeholder="0.00"></div>
+      </div>
+
+      <div class="cap">รายละเอียด</div>
+      <div class="group">
+        <div class="frow block"><textarea id="maintDetails" rows="2" placeholder="ระบุรายละเอียดการซ่อมหรือยี่ห้ออะไหล่..."></textarea></div>
+      </div>
+      <div class="chips" id="quickTextContainer" style="margin-top:10px"></div>
+
+      <div class="cap">ตั้งรอบครั้งถัดไป (ไม่บังคับ)</div>
+      <div class="group">
+        <div class="frow"><label for="maintNextInKm">อีกกี่กิโลเมตร</label><input type="number" inputmode="numeric" id="maintNextInKm" oninput="calcNextDueMileage()" placeholder="เช่น 10000"></div>
+        <div class="frow"><label for="maintNextInMonths">อีกกี่เดือน</label><input type="number" inputmode="numeric" id="maintNextInMonths" placeholder="เช่น 6"></div>
+        <div class="frow"><span class="fl">คาดการณ์กิโลถัดไป</span><b id="viewNextDueMileage" class="c-green">- กม.</b></div>
+      </div>
+
+      <div class="btn-row">
+        <button type="button" id="cancelMaintEditBtn" onclick="resetMaintForm()" class="btn gray hidden">ยกเลิก</button>
+        <button type="submit" id="submitMaintBtn" class="btn green">บันทึกข้อมูล</button>
+      </div>
+    </form>
+
+    <div style="margin-top:28px">
+      <div class="row-between" style="margin-bottom:10px;padding:0 4px">
+        <h2 class="h2">ประวัติซ่อมบำรุง</h2>
+        <select id="maintYearFilter" onchange="renderMaintenance()" class="selectpill">
+          <option value="1">1 ปี</option><option value="2">2 ปี</option><option value="all" selected>ทั้งหมด</option>
+        </select>
+      </div>
+      <div class="group" style="margin-bottom:12px">
+        <div class="frow">
+          <label for="showOnlyPending">แสดงเฉพาะที่ยังไม่ทำ</label>
+          <label class="switch"><input type="checkbox" id="showOnlyPending" checked onchange="renderMaintenance()"><span class="slider"></span></label>
+        </div>
+      </div>
+      <div id="maintContainer"><div class="sk"></div><div class="sk"></div></div>
+    </div>
+  </section>
+
+  <!-- ========== ตารางเช็ค ========== -->
+  <section id="sectionSchedule" class="sec owner-only">
+    <header class="large-title"><h1>ตารางเช็คระยะ</h1><p>รอบเปลี่ยนอะไหล่ตามระยะทาง</p></header>
+
+    <div class="cap">เพิ่มรายการอะไหล่ใหม่</div>
+    <div class="group">
+      <div class="frow"><label for="newScheduleName">ชื่ออะไหล่</label><input type="text" id="newScheduleName" placeholder="เช่น ผ้าเบรกหน้า"></div>
+      <div class="frow"><label for="newScheduleInterval">รอบ (กม.)</label><input type="number" inputmode="numeric" id="newScheduleInterval" placeholder="เช่น 40000"></div>
+    </div>
+    <button type="button" onclick="addScheduleItem()" class="btn green sm" style="margin-top:10px">เพิ่มรายการ</button>
+
+    <div class="cap">ค้นหา</div>
+    <div class="group">
+      <div class="frow"><label for="searchKmInput">ระยะที่ต้องการเช็ค</label><input type="number" inputmode="numeric" id="searchKmInput" oninput="searchByKm()" placeholder="เช่น 60000"></div>
+      <div class="frow"><label for="searchNameInput">ชื่ออะไหล่</label><input type="search" id="searchNameInput" oninput="searchByName()" placeholder="น้ำมันเครื่อง, กรอง..."></div>
+    </div>
+
+    <div class="row-between" style="margin:22px 4px 10px">
+      <h2 class="h2" id="scheduleResultTitle" style="font-size:16px">รายการอะไหล่ทั้งหมด</h2>
+      <span class="lbl" id="scheduleCount">0 รายการ</span>
+    </div>
+    <div id="scheduleContainer"></div>
+  </section>
+
+</main>
+
+<nav class="tabbar">
+  <div class="tabbar-in">
+    <button id="tabDashboardBtn" class="tab on" onclick="switchTab('dashboard')"><i class="bi bi-pie-chart-fill"></i><span>หน้าแรก</span></button>
+    <button id="tabFormBtn" class="tab" onclick="switchTab('form')"><i class="bi bi-fuel-pump-fill"></i><span>เติมเชื้อเพลิง</span></button>
+    <button id="tabMaintBtn" class="tab owner-only" onclick="switchTab('maint')"><i class="bi bi-tools"></i><span>ซ่อมบำรุง</span><span id="tabMaintBadge" class="tab-badge hidden">0</span></button>
+    <button id="tabScheduleBtn" class="tab owner-only" onclick="switchTab('schedule')"><i class="bi bi-clipboard-check-fill"></i><span>ตารางเช็ค</span></button>
+    <button id="moreBtn" class="tab-more" onclick="toggleMore()" aria-label="เมนูเพิ่มเติม" aria-expanded="false"><i class="bi bi-three-dots"></i></button>
+  </div>
+</nav>
+
+<script>
+  // ===================== State =====================
+  let globalData = [];
+  let globalMaintData = [];
+  let maintenanceScheduleData = [];
+  let myChart = null;
+  let isFirstLoad = true;
+  let lpgOverrideCache = null;
+  let currentMonthLpgLiters = 0;
+  let serverToday = null;
+  let mileageMode = 'trip';
+  let discountManualOverride = false;
+
+  // โหมดย่อ (ค่าเริ่มต้น): เห็นเฉพาะหน้าสรุป + เติมเชื้อเพลิง และตัวเลขนับเฉพาะเชื้อเพลิง
+  // กดปุ่ม ••• ที่แท็บบาร์เพื่อขยายเป็นโหมดเต็ม (ซ่อมบำรุง + ตารางเช็ค + ค่าซ่อมในสรุป)
+  let liteMode = true;
+  function applyLite() {
+    document.body.classList.toggle('family', liteMode);
+    document.getElementById('statCombinedLabel').innerText = liteMode ? 'ค่าเชื้อเพลิง · เดือนนี้' : 'ค่าใช้จ่ายรวมรถทั้งคัน · เดือนนี้';
+    const b = document.getElementById('moreBtn');
+    b.setAttribute('aria-expanded', String(!liteMode));
+    b.firstElementChild.className = 'bi bi-' + (liteMode ? 'three-dots' : 'x-lg');
+  }
+  function toggleMore() {
+    liteMode = !liteMode;
+    applyLite();
+    const inMaint = document.getElementById('sectionMaint').classList.contains('on') || document.getElementById('sectionSchedule').classList.contains('on');
+    if (liteMode && inMaint) switchTab('dashboard');
+    if (myChart) { myChart.destroy(); myChart = null; }
+    updateDashboard(); updateChart();
+    if (navigator.vibrate) navigator.vibrate(8);
+  }
+  applyLite();
+
+  const MAINT_ALERT_THRESHOLD_KM = 3000;
+  const FUEL_TYPE_MIN_RECENT_FILLS = 3;
+  const FUEL_TYPE_RECENT_MONTHS = 6;
+
+  // ===================== Utils =====================
+  // วันที่ท้องถิ่น yyyy-MM-dd (ห้ามใช้ toISOString เพราะเป็น UTC: ช่วง 00:00-07:00 ของไทยจะได้ "เมื่อวาน"
+  // ทำให้รายการที่เติมวันที่ 1 ตอนเช้าไปตกเดือนก่อนหน้า และยอดรายเดือนเพี้ยน)
+  function localDateStr(d) {
+    d = d || new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function parseLocal(str) {
+    const p = String(str).split('-').map(Number);
+    return new Date(p[0], p[1] - 1, p[2]);
+  }
+  function fmtThaiDate(str, opts) {
+    const d = parseLocal(str);
+    return isNaN(d.getTime()) ? 'ไม่ระบุวันที่' : d.toLocaleDateString('th-TH', opts || { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+  function getCurrentDateStr() { return serverToday ? serverToday.dateStr : localDateStr(); }
+  function getCurrentMonthStr() { return serverToday ? serverToday.monthStr : localDateStr().substring(0, 7); }
+  function shiftMonth(key, delta) {
+    const p = key.split('-').map(Number);
+    const dt = new Date(p[0], p[1] - 1 + delta, 1);
+    return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0');
+  }
+  function getCutoffStr(months) {
+    const p = getCurrentDateStr().split('-').map(Number);
+    return localDateStr(new Date(p[0], p[1] - 1 - months, p[2]));
+  }
+  function formatNumber(num) {
+    return (parseFloat(num) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    const div = document.createElement('div');
+    div.textContent = String(str);
+    return div.innerHTML;
+  }
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function setNum(id, to, fmt) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    fmt = fmt || formatNumber;
+    const from = el._v || 0;
+    el._v = to;
+    cancelAnimationFrame(el._r);
+    if (reduceMotion || from === to) { el.textContent = fmt(to); return; }
+    const t0 = performance.now();
+    const step = (now) => {
+      const p = Math.min((now - t0) / 600, 1);
+      const e = 1 - Math.pow(1 - p, 3);
+      el.textContent = fmt(from + (to - from) * e);
+      if (p < 1) el._r = requestAnimationFrame(step);
+    };
+    el._r = requestAnimationFrame(step);
+  }
+  const Toast = Swal.mixin({ toast: true, position: 'top', showConfirmButton: false, timer: 2000 });
+  function toastOk(msg) { Toast.fire({ icon: 'success', title: msg }); }
+  function handleServerError(err, restoreFn) {
+    console.error('google.script.run error:', err);
+    Swal.fire({
+      title: 'เกิดข้อผิดพลาด',
+      text: (err && err.message) ? err.message : 'ไม่สามารถติดต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่อีกครั้ง',
+      icon: 'error', confirmButtonColor: '#ff3b30'
+    });
+    if (typeof restoreFn === 'function') restoreFn();
+  }
+  function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+  // ===================== ข้อมูลเชื้อเพลิง: ฟังก์ชันพื้นฐาน =====================
+  function validFuelRecords() {
+    return (globalData || [])
+      .filter(d => d && d.date && !isNaN(parseInt(d.mileage)) && parseInt(d.mileage) > 0)
+      .sort((a, b) => a.date.localeCompare(b.date) || parseInt(a.mileage) - parseInt(b.mileage));
+  }
+  function getLatestFuelMileage() {
+    const v = validFuelRecords().map(d => parseInt(d.mileage));
+    return v.length ? Math.max(...v) : 0;
+  }
+  // รายการที่เลขไมล์ "ลดลง" เมื่อเรียงตามวันที่ — มักเป็นต้นเหตุที่ทำให้ บ./กม. เพี้ยน
+  function getMileageAnomalies() {
+    const recs = validFuelRecords();
+    const ids = new Set();
+    let prev = 0;
+    recs.forEach(r => {
+      const km = parseInt(r.mileage);
+      if (prev && km < prev) ids.add(String(r.id));
+      else prev = km;
+    });
+    return ids;
+  }
+
+  // ===================== ✅ สูตรต้นทุน/กม. (แก้ใหม่) =====================
+  // ปัญหาเดิม: ระยะทาง = (ไมล์สูงสุด - ไมล์ต่ำสุด) "ภายในช่วงเวลานั้น" แต่ค่าใช้จ่ายนับทุกการเติมในช่วง
+  // รวมการเติมครั้งแรกซึ่งเป็นน้ำมันที่ใช้วิ่งในช่วงก่อนหน้า → ตัวหารขาดระยะทางช่วงต้นเดือนไปหนึ่งก้อน
+  // เดือนที่เติมแค่ 2 ครั้งใกล้กัน ระยะทางน้อยมาก ตัวเลข บ./กม. เลยพุ่ง
+  // วิธีใหม่: ระยะทาง = ไมล์ล่าสุดในช่วง - ไมล์ของ "การเติมครั้งสุดท้ายก่อนเริ่มช่วงนั้น"
+  // ถ้าไม่มีรายการก่อนหน้า ใช้การเติมครั้งแรกเป็นจุดอ้างอิงและไม่นับเงินครั้งนั้นเป็นต้นทุน
+  function computeCostRange(startStr, endStr) {
+    const fuel = validFuelRecords();
+    const inRange = fuel.filter(d => d.date >= startStr && (!endStr || d.date < endStr));
+    if (!inRange.length) return null;
+    const before = fuel.filter(d => d.date < startStr);
+
+    let baselineKm, costRecords, effStart;
+    if (before.length) {
+      baselineKm = parseInt(before[before.length - 1].mileage);
+      costRecords = inRange;
+      effStart = startStr;
+    } else {
+      baselineKm = parseInt(inRange[0].mileage);
+      costRecords = inRange.slice(1);
+      effStart = inRange[0].date;
+    }
+    const endKm = parseInt(inRange[inRange.length - 1].mileage);
+    const distance = endKm - baselineKm;
+    if (distance <= 0) return null;
+
+    const fuelCost = costRecords.reduce((s, d) => s + (parseFloat(d.totalPaid) || 0), 0);
+    const maintCost = liteMode ? 0 : (globalMaintData || [])
+      .filter(d => d && d.date && d.date >= effStart && (!endStr || d.date < endStr))
+      .reduce((s, d) => s + (parseFloat(d.cost) || 0), 0);
+
+    return { distance, fuelCost, maintCost, fuelPerKm: fuelCost / distance, combinedPerKm: (fuelCost + maintCost) / distance };
+  }
+
+  // ===================== อัตราสิ้นเปลือง กม./ลิตร =====================
+  function efficiencyFrom(records) {
+    records = records.sort((a, b) => a.mileage - b.mileage);
+    if (records.length < 2) return null;
+    let dist = 0, lit = 0;
+    for (let i = 1; i < records.length; i++) {
+      const d = records[i].mileage - records[i - 1].mileage;
+      if (d > 0) { dist += d; lit += records[i].liters; }
+    }
+    return (lit > 0 && dist > 0) ? dist / lit : null;
+  }
+  function fuelRecordsOfType(type, cutoffStr) {
+    return (globalData || [])
+      .filter(d => d && d.type === type && d.date && (!cutoffStr || d.date >= cutoffStr) && !isNaN(parseInt(d.mileage)) && parseFloat(d.calculatedLiters) > 0)
+      .map(d => ({ mileage: parseInt(d.mileage), liters: parseFloat(d.calculatedLiters) }));
+  }
+  function getFuelEfficiencyByType(type) { return efficiencyFrom(fuelRecordsOfType(type)); }
+  function getFuelEfficiencyByTypeForPeriod(type, months) { return efficiencyFrom(fuelRecordsOfType(type, getCutoffStr(months))); }
+  function countRecentFillsByType(type, months) {
+    const c = getCutoffStr(months);
+    return (globalData || []).filter(d => d && d.type === type && d.date && d.date >= c).length;
+  }
+  function renderFuelEfficiency() {
+    const g = getFuelEfficiencyByType('Gasoline'), l = getFuelEfficiencyByType('LPG');
+    const gy = getFuelEfficiencyByTypeForPeriod('Gasoline', 12), ly = getFuelEfficiencyByTypeForPeriod('LPG', 12);
+    const t = (v) => v !== null ? formatNumber(v) + ' กม./ล.' : 'ข้อมูลไม่พอ';
+    document.getElementById('statKmlGasoline').innerText = t(g);
+    document.getElementById('statKmlLpg').innerText = t(l);
+    document.getElementById('statKmlGasolineYear').innerText = t(gy);
+    document.getElementById('statKmlLpgYear').innerText = t(ly);
+
+    const hide = countRecentFillsByType('Gasoline', FUEL_TYPE_RECENT_MONTHS) < FUEL_TYPE_MIN_RECENT_FILLS;
+    document.getElementById('kmlGasolineBlock').classList.toggle('hidden', hide);
+    document.getElementById('kmlGrid').style.gridTemplateColumns = hide ? '1fr' : '1fr 1fr';
+  }
+
+  // ===================== เลขไมล์ในฟอร์ม =====================
+  function getBaseMileageForDate(dateStr) {
+    if (!globalData || !Array.isArray(globalData)) return 0;
+    const el = document.getElementById('recordId');
+    const excludeId = el && el.value ? String(el.value) : null;
+    if (!dateStr) return getLatestFuelMileage();
+    const prior = globalData.filter(d => {
+      if (!d || !d.date || !d.mileage || isNaN(parseInt(d.mileage))) return false;
+      if (excludeId && String(d.id) === excludeId) return false;
+      return d.date < dateStr;
+    });
+    return prior.length ? Math.max(...prior.map(d => parseInt(d.mileage))) : 0;
+  }
+  function getNextMileageAfterDate(dateStr) {
+    if (!globalData || !dateStr) return null;
+    const el = document.getElementById('recordId');
+    const excludeId = el && el.value ? String(el.value) : null;
+    const c = globalData.filter(d => {
+      if (!d || !d.date || !d.mileage || isNaN(parseInt(d.mileage))) return false;
+      if (excludeId && String(d.id) === excludeId) return false;
+      return d.date > dateStr;
+    });
+    return c.length ? Math.min(...c.map(d => parseInt(d.mileage))) : null;
+  }
+  function setMileageMode(mode) {
+    mileageMode = mode;
+    const odoBtn = document.getElementById('mileageModeOdoBtn');
+    const tripBtn = document.getElementById('mileageModeTripBtn');
+    const odo = document.getElementById('mileage');
+    const trip = document.getElementById('mileageTripInput');
+    const isTrip = mode === 'trip';
+    tripBtn.classList.toggle('on', isTrip);
+    odoBtn.classList.toggle('on', !isTrip);
+    odo.classList.toggle('hidden', isTrip);
+    odo.required = !isTrip;
+    trip.classList.toggle('hidden', !isTrip);
+    trip.required = isTrip;
+    if (isTrip) handleTripInput(); else { trip.value = ''; updateMileageHint(); }
+  }
+  function handleTripInput() {
+    const dateStr = document.getElementById('date').value;
+    const base = getBaseMileageForDate(dateStr);
+    const trip = parseFloat(document.getElementById('mileageTripInput').value) || 0;
+    document.getElementById('mileage').value = trip > 0 ? (base + trip) : '';
+    updateMileageHint();
+  }
+  function handleDateChangeForMileage() { if (mileageMode === 'trip') handleTripInput(); }
+  function updateMileageHint() {
+    const el = document.getElementById('mileageHint');
+    if (mileageMode !== 'trip') { el.innerHTML = ''; return; }
+    const base = getBaseMileageForDate(document.getElementById('date').value);
+    const trip = parseFloat(document.getElementById('mileageTripInput').value) || 0;
+    if (base > 0) {
+      el.innerHTML = trip > 0
+        ? `ไมล์ครั้งก่อน ${base.toLocaleString()} + ${trip.toLocaleString()} กม. = <b style="color:var(--blue)">${(base + trip).toLocaleString()}</b> กม.`
+        : `ไมล์ครั้งก่อนหน้า ${base.toLocaleString()} กม. — กรอกระยะที่วิ่งได้จากครั้งก่อน`;
+    } else {
+      el.innerHTML = 'ยังไม่มีเลขไมล์ก่อนหน้า ระบบจะใช้ตัวเลขนี้เป็นเลขไมล์เริ่มต้น';
+    }
+  }
+
+  // ===================== เริ่มต้น / โหลดข้อมูล =====================
+  window.addEventListener('DOMContentLoaded', () => {
+    const today = localDateStr();
+    document.getElementById('date').value = today;
+    document.getElementById('maintDate').value = today;
+    updateTodayLabel();
+
+    document.getElementById('quickTextContainer').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-name]');
+      if (b) appendQuickText(b.dataset.name);
+    });
+
+    google.script.run
+      .withSuccessHandler((result) => {
+        serverToday = result;
+        document.getElementById('date').value = serverToday.dateStr;
+        document.getElementById('maintDate').value = serverToday.dateStr;
+        if (mileageMode === 'trip') handleTripInput();
+        updateTodayLabel();
+        loadLpgOverride();
+        updateDashboard();
+      })
+      .withFailureHandler((err) => console.error('โหลดวันที่จาก server ไม่สำเร็จ:', err))
+      .getServerToday();
+
+    loadData(); loadMaintenanceData(); loadLpgOverride(); loadScheduleData();
+    toggleLpgDiscountView();
+    setMileageMode('trip');   // ค่าเริ่มต้น: กรอกระยะที่วิ่งได้
+
+    // เปลี่ยนโหมดสว่าง/มืด → วาดกราฟใหม่ให้สีตรงธีม
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+      if (myChart) { myChart.destroy(); myChart = null; }
+      updateChart();
+    });
+  });
+
+  function updateTodayLabel() {
+    document.getElementById('todayLabel').innerText = fmtThaiDate(getCurrentDateStr(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  }
+
+  function loadData() {
+    google.script.run
+      .withSuccessHandler((data) => {
+        globalData = data || [];
+        if (mileageMode === 'trip') handleTripInput();   // ข้อมูลมาแล้ว → คำนวณไมล์ฐานใหม่
+        updateDashboard(); updateChart(); buildMonthFilterOptions(); renderHistory(); updateLastPriceChip();
+        if (globalMaintData && globalMaintData.length > 0) renderMaintenance();
+      })
+      .withFailureHandler((err) => {
+        handleServerError(err);
+        document.getElementById('historyContainer').innerHTML = '<div class="empty"><i class="bi bi-wifi-off"></i>โหลดข้อมูลไม่สำเร็จ กรุณาลองใหม่</div>';
+      })
+      .getFuelData();
+  }
+  function loadMaintenanceData() {
+    google.script.run
+      .withSuccessHandler((data) => {
+        globalMaintData = data || [];
+        updateDashboard(); updateChart(); renderMaintenance();
+      })
+      .withFailureHandler((err) => {
+        handleServerError(err);
+        document.getElementById('maintContainer').innerHTML = '<div class="empty"><i class="bi bi-wifi-off"></i>โหลดข้อมูลไม่สำเร็จ กรุณาลองใหม่</div>';
+      })
+      .getMaintenanceData();
+  }
+  function loadLpgOverride() {
+    google.script.run
+      .withSuccessHandler((result) => { lpgOverrideCache = result; updateDashboard(); })
+      .withFailureHandler((err) => console.error('โหลดยอด LPG override ไม่สำเร็จ:', err))
+      .getLpgOverride(getCurrentMonthStr());
+  }
+  function loadScheduleData() {
+    google.script.run
+      .withSuccessHandler((data) => {
+        maintenanceScheduleData = data || [];
+        renderQuickTextButtons();
+        updateDashboard();
+        if (document.getElementById('sectionSchedule').classList.contains('on')) showAllSchedule();
+      })
+      .withFailureHandler((err) => {
+        handleServerError(err);
+        document.getElementById('scheduleContainer').innerHTML = '<div class="empty"><i class="bi bi-wifi-off"></i>โหลดตารางเช็คระยะไม่สำเร็จ</div>';
+      })
+      .getScheduleData();
+  }
+
+  function toggleLpgDiscountView() {
+    const typeEl = document.querySelector('input[name="fuelType"]:checked');
+    const isLpg = (typeEl ? typeEl.value : 'Gasoline') === 'LPG';
+    document.getElementById('lpgDiscountContainer').classList.toggle('hidden', !isLpg);
+    document.getElementById('hasLpgDiscount').disabled = !isLpg;
+    updateLastPriceChip();
+  }
+
+  // ปุ่มลัดกรอกเร็วบนมือถือ: จำนวนเงินยอดนิยม + ราคาต่อลิตรครั้งก่อนของเชื้อเพลิงชนิดเดียวกัน
+  function setAmount(v) {
+    document.getElementById('totalPaid').value = v;
+    triggerCalculation();
+    if (navigator.vibrate) navigator.vibrate(6);
+  }
+  let lastPriceValue = null;
+  function updateLastPriceChip() {
+    const chip = document.getElementById('lastPriceChip');
+    if (!chip) return;
+    const typeEl = document.querySelector('input[name="fuelType"]:checked');
+    const type = typeEl ? typeEl.value : 'Gasoline';
+    const recs = (globalData || [])
+      .filter(d => d && d.date && d.type === type && parseFloat(d.pricePerLiter) > 0)
+      .sort((a, b) => b.date.localeCompare(a.date) || (parseInt(b.id) || 0) - (parseInt(a.id) || 0));
+    if (!recs.length) { lastPriceValue = null; chip.style.display = 'none'; return; }
+    lastPriceValue = parseFloat(recs[0].pricePerLiter);
+    chip.innerText = 'ราคาครั้งก่อน ' + lastPriceValue;
+    chip.style.display = '';
+  }
+  function useLastPrice() {
+    if (lastPriceValue === null) return;
+    document.getElementById('pricePerLiter').value = lastPriceValue;
+    triggerCalculation();
+    if (navigator.vibrate) navigator.vibrate(6);
+  }
+
+  function renderQuickTextButtons() {
+    const c = document.getElementById('quickTextContainer');
+    if (!c) return;
+    c.innerHTML = maintenanceScheduleData.map(item =>
+      `<button type="button" class="chip" data-name="${escapeHtml(item.name)}">+ ${escapeHtml(item.name)}</button>`
+    ).join('');
+  }
+  function appendQuickText(text) {
+    const ta = document.getElementById('maintDetails');
+    ta.value = ta.value.trim() === '' ? text : ta.value.trim() + ', ' + text;
+    ta.focus();
+  }
+
+  function buildMonthFilterOptions() {
+    const sel = document.getElementById('historyMonthFilter');
+    if (!sel) return;
+    const saved = sel.value;
+    const map = {};
+    globalData.forEach(item => {
+      if (!item || !item.date) return;
+      map[item.date.substring(0, 7)] = fmtThaiDate(item.date.substring(0, 7) + '-01', { month: 'long', year: 'numeric' });
+    });
+    const keys = Object.keys(map).sort().reverse();
+    if (!keys.length) { sel.innerHTML = '<option value="all">ทั้งหมด</option>'; sel.value = 'all'; return; }
+    sel.innerHTML = '<option value="all">ทั้งหมด</option>' + keys.map(k => `<option value="${k}">${map[k]}</option>`).join('');
+    const cur = getCurrentMonthStr();
+    if (!isFirstLoad && saved && (keys.includes(saved) || saved === 'all')) sel.value = saved;
+    else if (keys.includes(cur)) sel.value = cur;
+    else sel.value = 'all';
+    isFirstLoad = false;
+  }
+
+  // ===================== รายการซ่อมบำรุงที่แนะนำ =====================
+  function getRecommendedMaintenance() {
+    const latest = getLatestFuelMileage();
+    if (!latest) return [];
+    const recs = Array.isArray(globalMaintData) ? globalMaintData : [];
+    return maintenanceScheduleData.map(item => {
+      const related = recs.filter(r => r && r.details && String(r.details).includes(item.name));
+      const lastMileage = related.length ? Math.max(...related.map(r => parseInt(r.mileage) || 0)) : 0;
+      const nextDueMileage = lastMileage + item.interval;
+      const remainingKm = nextDueMileage - latest;
+      let status = 'normal';
+      if (remainingKm <= 0) status = 'overdue';
+      else if (remainingKm <= MAINT_ALERT_THRESHOLD_KM) status = 'near';
+      return { name: item.name, interval: item.interval, lastMileage, nextDueMileage, remainingKm, status };
+    }).filter(r => r.status !== 'normal').sort((a, b) => a.remainingKm - b.remainingKm);
+  }
+  function renderRecommendedMaintenance() {
+    const c = document.getElementById('recommendedMaintList');
+    const list = getRecommendedMaintenance();
+    if (!list.length) {
+      c.innerHTML = '<div class="empty" style="padding:20px"><i class="bi bi-check-circle-fill c-green"></i>' +
+        (getLatestFuelMileage() ? 'ไม่มีรายการเกินกำหนดหรือใกล้ถึงกำหนด' : 'ยังไม่มีเลขไมล์ กรุณาบันทึกการเติมเชื้อเพลิงก่อน') + '</div>';
+      return;
+    }
+    c.innerHTML = list.map(item => {
+      const over = item.status === 'overdue';
+      const label = over ? `เกินกำหนด ${Math.abs(item.remainingKm).toLocaleString()} กม.` : `อีก ${item.remainingKm.toLocaleString()} กม.`;
+      return `
+        <div class="li">
+          <div class="ico" style="background:var(${over ? '--red' : '--orange'})"><i class="bi bi-${over ? 'exclamation-triangle-fill' : 'clock-fill'}"></i></div>
+          <div class="grow">
+            <div class="t1">${escapeHtml(item.name)}</div>
+            <div class="t3">ทุก ${item.interval.toLocaleString()} กม. · ล่าสุด ${item.lastMileage > 0 ? item.lastMileage.toLocaleString() + ' กม.' : 'ยังไม่มีประวัติ'}</div>
+          </div>
+          <div style="text-align:right">
+            <span class="pill ${over ? 'red' : 'orange'}">${label}</span>
+            <div class="t3">ครบที่ ${item.nextDueMileage.toLocaleString()}</div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  // ===================== สลับแท็บ =====================
+  function switchTab(tab) {
+    const map = { dashboard: 'Dashboard', form: 'Form', maint: 'Maint', schedule: 'Schedule' };
+    Object.keys(map).forEach(k => {
+      document.getElementById('section' + map[k]).classList.toggle('on', k === tab);
+      document.getElementById('tab' + map[k] + 'Btn').classList.toggle('on', k === tab);
+    });
+    window.scrollTo({ top: 0, behavior: 'auto' });
+    if (navigator.vibrate) navigator.vibrate(6);
+    if (tab === 'dashboard') { updateDashboard(); updateChart(); }
+    if (tab === 'schedule') showAllSchedule();
+  }
+
+  // ===================== ตารางเช็คระยะ =====================
+  function showAllSchedule() {
+    document.getElementById('searchKmInput').value = '';
+    document.getElementById('searchNameInput').value = '';
+    document.getElementById('scheduleResultTitle').innerText = 'รายการอะไหล่ทั้งหมด';
+    renderScheduleList(maintenanceScheduleData);
+  }
+  function searchByKm() {
+    const km = parseInt(document.getElementById('searchKmInput').value);
+    document.getElementById('searchNameInput').value = '';
+    if (isNaN(km) || km <= 0) { showAllSchedule(); return; }
+    document.getElementById('scheduleResultTitle').innerText = `ที่รอบ ${km.toLocaleString()} กม.`;
+    renderScheduleList(maintenanceScheduleData.filter(i => km % i.interval === 0));
+  }
+  function searchByName() {
+    const q = document.getElementById('searchNameInput').value.trim().toLowerCase();
+    document.getElementById('searchKmInput').value = '';
+    if (!q) { showAllSchedule(); return; }
+    document.getElementById('scheduleResultTitle').innerText = `ผลค้นหา "${q}"`;
+    renderScheduleList(maintenanceScheduleData.filter(i => i.name.toLowerCase().includes(q)));
+  }
+  function addScheduleItem() {
+    const nameInput = document.getElementById('newScheduleName');
+    const intervalInput = document.getElementById('newScheduleInterval');
+    const name = nameInput.value.trim();
+    const interval = parseInt(intervalInput.value);
+    if (!name) { Swal.fire('ข้อมูลไม่ครบ', 'กรุณากรอกชื่ออะไหล่', 'warning'); return; }
+    if (!interval || interval <= 0) { Swal.fire('ข้อมูลไม่ถูกต้อง', 'กรุณากรอกรอบกิโลเมตรให้ถูกต้อง (มากกว่า 0)', 'warning'); return; }
+    google.script.run
+      .withSuccessHandler((res) => {
+        if (res && res.success) { nameInput.value = ''; intervalInput.value = ''; loadScheduleData(); toastOk('เพิ่มรายการแล้ว'); }
+        else Swal.fire('เกิดข้อผิดพลาด', (res && res.message) || 'ไม่สามารถเพิ่มรายการได้', 'error');
+      })
+      .withFailureHandler((err) => handleServerError(err))
+      .saveScheduleItem({ name: name, interval: interval });
+  }
+  function editScheduleItem(id) {
+    const item = maintenanceScheduleData.find(d => String(d.id) === String(id));
+    if (!item) return;
+    Swal.fire({
+      title: 'แก้ไขรายการอะไหล่',
+      html: `<input id="swalEditName" class="swal2-input" placeholder="ชื่ออะไหล่" value="${escapeHtml(item.name)}">` +
+            `<input id="swalEditInterval" type="number" inputmode="numeric" class="swal2-input" placeholder="รอบ (กม.)" value="${item.interval}">`,
+      focusConfirm: false, showCancelButton: true, confirmButtonText: 'บันทึก', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#007aff',
+      preConfirm: () => {
+        const n = document.getElementById('swalEditName').value.trim();
+        const iv = parseInt(document.getElementById('swalEditInterval').value);
+        if (!n) { Swal.showValidationMessage('กรุณากรอกชื่ออะไหล่'); return false; }
+        if (!iv || iv <= 0) { Swal.showValidationMessage('กรุณากรอกรอบกิโลเมตรให้ถูกต้อง'); return false; }
+        return { name: n, interval: iv };
+      }
+    }).then((result) => {
+      if (result.isConfirmed && result.value) {
+        google.script.run
+          .withSuccessHandler((res) => {
+            if (res && res.success) { loadScheduleData(); toastOk('แก้ไขสำเร็จ'); }
+            else Swal.fire('เกิดข้อผิดพลาด', (res && res.message) || 'ไม่สามารถแก้ไขรายการได้', 'error');
+          })
+          .withFailureHandler((err) => handleServerError(err))
+          .updateScheduleItem({ id: id, name: result.value.name, interval: result.value.interval });
+      }
+    });
+  }
+  function deleteScheduleItemByRef(id) {
+    Swal.fire({ title: 'ลบรายการนี้?', text: 'ต้องการลบอะไหล่นี้ออกจากตารางเช็คระยะใช่หรือไม่', icon: 'warning', showCancelButton: true,
+      confirmButtonColor: '#ff3b30', cancelButtonColor: '#8e8e93', confirmButtonText: 'ลบ', cancelButtonText: 'ยกเลิก' })
+    .then((result) => {
+      if (!result.isConfirmed) return;
+      google.script.run
+        .withSuccessHandler((res) => {
+          if (res && res.success) { loadScheduleData(); toastOk('ลบแล้ว'); }
+          else Swal.fire('เกิดข้อผิดพลาด', (res && res.message) || 'ไม่สามารถลบรายการได้', 'error');
+        })
+        .withFailureHandler((err) => handleServerError(err))
+        .deleteScheduleItem(id);
+    });
+  }
+  function renderScheduleList(list) {
+    const c = document.getElementById('scheduleContainer');
+    document.getElementById('scheduleCount').innerText = `${list.length} รายการ`;
+    if (!list.length) { c.innerHTML = '<div class="empty"><i class="bi bi-folder2-open"></i>ไม่พบรายการ</div>'; return; }
+    const rows = list.map(item => {
+      let last = 'ยังไม่เคยบันทึกในระบบ';
+      const past = (globalMaintData || []).filter(r => r.category === 'เช็คระยะ' && r.details && r.details.includes(item.name));
+      if (past.length) { past.sort((a, b) => parseInt(b.mileage) - parseInt(a.mileage)); last = `ทำล่าสุดที่ ${parseInt(past[0].mileage).toLocaleString()} กม.`; }
+      return `
+        <div class="li noicon">
+          <div class="grow"><div class="t1">${escapeHtml(item.name)}</div><div class="t3"><i class="bi bi-clock-history"></i> ${last}</div></div>
+          <span class="pill blue">ทุก ${item.interval.toLocaleString()} กม.</span>
+          <div class="acts">
+            <button type="button" class="ib" onclick="editScheduleItem('${item.id}')" aria-label="แก้ไข"><i class="bi bi-pencil-square"></i></button>
+            <button type="button" class="ib danger" onclick="deleteScheduleItemByRef('${item.id}')" aria-label="ลบ"><i class="bi bi-trash3-fill"></i></button>
+          </div>
+        </div>`;
+    }).join('');
+    c.innerHTML = `<div class="list">${rows}</div>`;
+  }
+
+  // ===================== ซ่อมบำรุง =====================
+  function calcNextDueMileage() {
+    const cur = parseInt(document.getElementById('maintMileage').value) || 0;
+    const nk = parseInt(document.getElementById('maintNextInKm').value) || 0;
+    document.getElementById('viewNextDueMileage').innerText = (cur > 0 && nk > 0) ? (cur + nk).toLocaleString() + ' กม.' : '- กม.';
+  }
+
+  function renderMaintenance() {
+    const container = document.getElementById('maintContainer');
+    const timeFilter = document.getElementById('maintYearFilter').value;
+    const onlyPending = document.getElementById('showOnlyPending').checked;
+
+    if (!globalMaintData || globalMaintData.length === 0) {
+      container.innerHTML = '<div class="empty"><i class="bi bi-wrench-adjustable"></i>ยังไม่มีประวัติซ่อมบำรุง</div>';
+      return;
+    }
+    const now = parseLocal(getCurrentDateStr());
+    const latest = getLatestFuelMileage();
+
+    const header = `
+      <div class="card" style="padding:12px 16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+        <span class="lbl"><i class="bi bi-speedometer2 c-blue"></i> เลขไมล์ล่าสุด (จากการเติมเชื้อเพลิง)</span>
+        <b class="c-blue">${latest > 0 ? latest.toLocaleString() + ' กม.' : '-'}</b>
+      </div>`;
+
+    const data = globalMaintData.filter(item => {
+      if (!item || !item.date) return false;
+      if (onlyPending && item.status !== 'N') return false;
+      if (timeFilter !== 'all') {
+        const yrs = (now - parseLocal(item.date)) / (1000 * 60 * 60 * 24 * 365.25);
+        if (yrs > parseInt(timeFilter)) return false;
+      }
+      return true;
+    }).sort((a, b) => b.date.localeCompare(a.date));
+
+    if (!data.length) { container.innerHTML = header + '<div class="empty"><i class="bi bi-funnel"></i>ไม่พบข้อมูลตามเงื่อนไข</div>'; return; }
+
+    const cards = data.map(item => {
+      const done = item.status === 'Y';
+      const badge = done ? '<span class="pill green"><i class="bi bi-check-lg"></i>ทำแล้ว</span>' : '<span class="pill orange"><i class="bi bi-clock"></i>รอครั้งต่อไป</span>';
+      const targetKm = parseInt(item.nextDueMileage || 0);
+      const hasKm = targetKm > 0;
+
+      let dateRow = '';
+      if (item.nextInMonths) {
+        const due = parseLocal(item.date);
+        due.setMonth(due.getMonth() + parseInt(item.nextInMonths));
+        const days = Math.ceil((due.getTime() - now.getTime()) / 86400000);
+        let txt;
+        if (done) txt = `<span class="c-green" style="color:var(--text2)">กำหนดถัดไป ${fmtThaiDate(localDateStr(due))}</span>`;
+        else if (days > 0) txt = `<b class="c-green">อีก ${days} วัน</b>`;
+        else if (days === 0) txt = '<b class="c-orange">ถึงกำหนดวันนี้!</b>';
+        else txt = `<b class="c-red">เลยมา ${Math.abs(days)} วัน</b>`;
+        dateRow = `<div class="row-between"><span class="lbl"><i class="bi bi-calendar3"></i> เวลา</span><span>${txt}</span></div>`;
+      }
+      let kmRow = '';
+      if (hasKm) {
+        let txt;
+        if (done) txt = `<span style="color:var(--text2)">ถัดไป ${targetKm.toLocaleString()} กม.</span>`;
+        else if (latest > 0) {
+          const diff = targetKm - latest;
+          if (diff > 0) txt = `<b class="c-green">อีก ${diff.toLocaleString()} กม.</b> <span class="t3">(ที่ ${targetKm.toLocaleString()})</span>`;
+          else if (diff === 0) txt = '<b class="c-orange">ครบรอบระยะทางวันนี้!</b>';
+          else txt = `<b class="c-red">เลยมา ${Math.abs(diff).toLocaleString()} กม.</b> <span class="t3">(ที่ ${targetKm.toLocaleString()})</span>`;
+        } else txt = `<span style="color:var(--text2)">ถัดไป ${targetKm.toLocaleString()} กม.</span>`;
+        kmRow = `<div class="row-between"><span class="lbl"><i class="bi bi-signpost-split"></i> ระยะทาง</span><span style="text-align:right">${txt}</span></div>`;
+      }
+
+      return `
+        <div class="card" style="padding:14px 16px">
+          <div class="row-between" style="align-items:flex-start">
+            <div>
+              <div class="t1">${escapeHtml(item.category) || 'ทั่วไป'} ${badge}</div>
+              <div class="t2">${fmtThaiDate(item.date)} · <b>${formatNumber(item.cost || 0)} บ.</b></div>
+            </div>
+            <div class="acts">
+              ${!done ? `<button type="button" class="ib" style="color:var(--green)" onclick="confirmMaintDone('${item.id}')" aria-label="ทำแล้ว"><i class="bi bi-check-circle-fill"></i></button>` : ''}
+              <button type="button" class="ib" onclick="editMaintRecord('${item.id}')" aria-label="แก้ไข"><i class="bi bi-pencil-square"></i></button>
+              <button type="button" class="ib danger" onclick="deleteMaintRecord('${item.id}')" aria-label="ลบ"><i class="bi bi-trash3-fill"></i></button>
+            </div>
+          </div>
+          ${item.details ? `<div class="t2" style="margin-top:8px;background:var(--fill);padding:8px 10px;border-radius:10px">${escapeHtml(item.details)}</div>` : ''}
+          ${(kmRow || dateRow) ? `<div style="margin-top:10px;display:grid;gap:6px;font-size:13px">${kmRow}${dateRow}</div>` : ''}
+        </div>`;
+    }).join('<div style="height:10px"></div>');
+
+    container.innerHTML = header + cards;
+  }
+
+  function handleMaintSubmit(event) {
+    event.preventDefault();
+    const btn = document.getElementById('submitMaintBtn');
+    btn.disabled = true; btn.innerText = 'กำลังบันทึก...';
+    const cur = parseInt(document.getElementById('maintMileage').value) || 0;
+    const nk = parseInt(document.getElementById('maintNextInKm').value) || 0;
+    const record = {
+      id: document.getElementById('maintId').value || null,
+      date: document.getElementById('maintDate').value,
+      mileage: cur,
+      category: document.getElementById('maintCategory').value,
+      cost: document.getElementById('maintCost').value,
+      details: document.getElementById('maintDetails').value,
+      nextInKm: document.getElementById('maintNextInKm').value || null,
+      nextInMonths: document.getElementById('maintNextInMonths').value || null,
+      nextDueMileage: (cur > 0 && nk > 0) ? (cur + nk) : null,
+      status: document.getElementById('maintStatus').value || 'N'
+    };
+    google.script.run
+      .withSuccessHandler(() => { resetMaintForm(); loadMaintenanceData(); toastOk('บันทึกซ่อมบำรุงแล้ว'); })
+      .withFailureHandler((err) => handleServerError(err, () => { btn.disabled = false; btn.innerText = 'บันทึกข้อมูล'; }))
+      .saveMaintenance(record);
+  }
+
+  function confirmMaintDone(id) {
+    Swal.fire({ title: 'ทำรายการนี้แล้ว?', text: 'ยืนยันว่ารายการซ่อมบำรุงนี้เสร็จสิ้นแล้ว', icon: 'question', showCancelButton: true,
+      confirmButtonColor: '#34c759', cancelButtonColor: '#8e8e93', confirmButtonText: 'ยืนยัน', cancelButtonText: 'ยกเลิก' })
+    .then((result) => {
+      if (!result.isConfirmed) return;
+      google.script.run
+        .withSuccessHandler((res) => {
+          if (res && res.success) toastOk('บันทึกสถานะแล้ว');
+          else Swal.fire('เกิดข้อผิดพลาด', (res && res.message) || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'error');
+          loadMaintenanceData();
+        })
+        .withFailureHandler((err) => { handleServerError(err); loadMaintenanceData(); })
+        .completeMaintenance(id);
+    });
+  }
+
+  function editMaintRecord(id) {
+    const item = globalMaintData.find(d => String(d.id) === String(id));
+    if (!item) return;
+    document.getElementById('maintId').value = item.id;
+    document.getElementById('maintDate').value = item.date;
+    document.getElementById('maintMileage').value = item.mileage;
+    document.getElementById('maintCategory').value = item.category;
+    document.getElementById('maintCost').value = item.cost;
+    document.getElementById('maintDetails').value = item.details || '';
+    document.getElementById('maintNextInKm').value = item.nextInKm || '';
+    document.getElementById('maintNextInMonths').value = item.nextInMonths || '';
+    document.getElementById('maintStatus').value = item.status;
+    calcNextDueMileage();
+    document.getElementById('maintFormTitle').innerText = 'แก้ไขซ่อมบำรุง';
+    const b = document.getElementById('submitMaintBtn');
+    b.innerText = 'บันทึกการแก้ไข'; b.disabled = false; b.classList.replace('green', 'orange');
+    document.getElementById('cancelMaintEditBtn').classList.remove('hidden');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function deleteMaintRecord(id) {
+    Swal.fire({ title: 'ลบรายการนี้?', text: 'ข้อมูลในชีตจะถูกลบไปด้วย', icon: 'warning', showCancelButton: true,
+      confirmButtonColor: '#ff3b30', cancelButtonColor: '#8e8e93', confirmButtonText: 'ลบ', cancelButtonText: 'ยกเลิก' })
+    .then((result) => {
+      if (!result.isConfirmed) return;
+      google.script.run
+        .withSuccessHandler((res) => {
+          if (res && res.success) toastOk('ลบแล้ว');
+          else Swal.fire('เกิดข้อผิดพลาด', (res && res.message) || 'เกิดข้อผิดพลาดในการลบข้อมูล', 'error');
+          loadMaintenanceData();
+        })
+        .withFailureHandler((err) => { handleServerError(err); loadMaintenanceData(); })
+        .deleteMaintenance(id);
+    });
+  }
+
+  function resetMaintForm() {
+    ['maintId', 'maintMileage', 'maintCost', 'maintDetails', 'maintNextInKm', 'maintNextInMonths'].forEach(i => document.getElementById(i).value = '');
+    document.getElementById('maintDate').value = getCurrentDateStr();
+    document.getElementById('maintCategory').value = 'เช็คระยะ';
+    document.getElementById('maintStatus').value = 'N';
+    document.getElementById('viewNextDueMileage').innerText = '- กม.';
+    document.getElementById('maintFormTitle').innerText = 'ซ่อมบำรุง';
+    const b = document.getElementById('submitMaintBtn');
+    b.disabled = false; b.innerText = 'บันทึกข้อมูล'; b.classList.replace('orange', 'green');
+    document.getElementById('cancelMaintEditBtn').classList.add('hidden');
+  }
+
+  // ===================== คำนวณฟอร์มเติมเชื้อเพลิง =====================
+  function runCalculation() {
+    const typeEl = document.querySelector('input[name="fuelType"]:checked');
+    const type = typeEl ? typeEl.value : 'Gasoline';
+    const money = parseFloat(document.getElementById('totalPaid').value) || 0;
+    const price = parseFloat(document.getElementById('pricePerLiter').value) || 0;
+    const hasDiscount = document.getElementById('hasLpgDiscount').checked;
+    const inputDate = document.getElementById('date').value;
+
+    let liters = 0, discount = 0, finalPaid = money;
+
+    if (money > 0 && price > 0) {
+      // นับเฉพาะลิตรเต็ม (ตัดเศษลิตรทิ้ง) — +1e-9 กันปัญหาทศนิยมของ floating point
+      liters = Math.floor(money / price + 1e-9);
+      if (type === 'LPG' && hasDiscount && inputDate) {
+        const monthStr = inputDate.substring(0, 7);
+        const curId = document.getElementById('recordId').value || null;
+        // ลิตรที่ใช้สิทธิ์ไปแล้วของเดือนนั้น (ถ้ามีการแก้ยอดเอง จะนับต่อจากเลขที่แก้)
+        const past = getLpgUsedInMonth(monthStr, curId);
+        const leftHigh = Math.max(200 - past, 0);
+        // ส่วนลดลิตรละ 0.50 บาท: ถ้าเป็นเศษ .50 ปัดขึ้นเป็น 1 บาท (Math.ceil)
+        // สิทธิ์ที่ตัดจากโควตา 200 ลิตร คือจำนวนลิตรเต็มที่เติมจริงเท่านั้น ไม่ได้ถูกตัดเพิ่มจากการปัดเศษ
+        let high = 0, low = 0;
+        if (leftHigh >= liters) high = Math.ceil(liters * 0.50);
+        else if (leftHigh > 0) { high = Math.ceil(leftHigh * 0.50); low = Math.ceil((liters - leftHigh) * 0.20); }
+        else low = Math.ceil(liters * 0.20);
+        discount = high + low;
+        finalPaid = money - discount;
+      }
+    }
+    return { calculatedLiters: liters, discount: discount, finalPaid: finalPaid };
+  }
+  // ยอดลิตร LPG ที่ใช้สิทธิ์ไปแล้วของเดือน monthStr
+  //  - ไม่มีการแก้ยอดเอง: รวมลิตรเต็มจากทุกรายการ LPG ของเดือนนั้น
+  //  - มีการแก้ยอดเอง (เฉพาะเดือนปัจจุบัน): เริ่มจากเลขที่แก้ แล้วบวกเฉพาะรายการที่เติมหลังจากแก้ (id > baseId)
+  //  - excludeId: รายการที่กำลังแก้ไขอยู่ ไม่นับซ้ำกับตัวเอง
+  function getLpgUsedInMonth(monthStr, excludeId) {
+    const ov = (lpgOverrideCache && lpgOverrideCache.month === monthStr) ? lpgOverrideCache : null;
+    const baseId = ov ? (Number(ov.baseId) || 0) : 0;
+    let used = ov ? (Number(ov.used) || 0) : 0;
+    (globalData || []).forEach(d => {
+      if (!d || !d.date || d.date.substring(0, 7) !== monthStr || d.type !== 'LPG') return;
+      const liters = Math.floor(parseFloat(d.calculatedLiters || d.liters || 0)) || 0;
+      const isSelf = excludeId && String(d.id) === String(excludeId);
+      if (!ov) { if (!isSelf) used += liters; return; }
+      const afterOverride = Number(d.id) > baseId;
+      if (isSelf) { if (!afterOverride) used = Math.max(used - liters, 0); return; }  // รายการเก่าที่รวมอยู่ในเลขที่แก้แล้ว
+      if (afterOverride) used += liters;
+    });
+    return used;
+  }
+  function getEffectiveCalc() {
+    const auto = runCalculation();
+    if (!discountManualOverride) return auto;
+    const money = parseFloat(document.getElementById('totalPaid').value) || 0;
+    const md = parseFloat(document.getElementById('discountInput').value) || 0;
+    return { calculatedLiters: auto.calculatedLiters, discount: md, finalPaid: money - md };
+  }
+  function triggerCalculation() {
+    const auto = runCalculation();
+    document.getElementById('viewLiters').innerText = auto.calculatedLiters.toFixed(2) + ' ลิตร';
+    if (!discountManualOverride) document.getElementById('discountInput').value = auto.discount || '';
+    document.getElementById('viewNetPaid').innerText = formatNumber(getEffectiveCalc().finalPaid) + ' บาท';
+    document.getElementById('barNetPaid').innerText = formatNumber(getEffectiveCalc().finalPaid);
+  }
+  function handleDiscountInput() {
+    discountManualOverride = true;
+    document.getElementById('discountResetBtn').classList.remove('hidden');
+    document.getElementById('viewNetPaid').innerText = formatNumber(getEffectiveCalc().finalPaid) + ' บาท';
+    document.getElementById('barNetPaid').innerText = formatNumber(getEffectiveCalc().finalPaid);
+  }
+  function resetDiscountOverride() {
+    discountManualOverride = false;
+    document.getElementById('discountResetBtn').classList.add('hidden');
+    triggerCalculation();
+  }
+
+  // ===================== แดชบอร์ด =====================
+  function updateDashboard() {
+    currentMonthLpgLiters = 0;
+    const curMonth = getCurrentMonthStr();
+    const todayDate = parseLocal(getCurrentDateStr());
+
+    // --- LPG ---
+    currentMonthLpgLiters = getLpgUsedInMonth(curMonth, null);
+    const latest = getLatestFuelMileage();
+    document.getElementById('statLatestMileage').innerText = latest.toLocaleString() + ' กม.';
+    const remaining = Math.max(200 - currentMonthLpgLiters, 0);
+    document.getElementById('statLpgLiters').innerText = remaining.toFixed(0);
+    const pct = Math.min((currentMonthLpgLiters / 200) * 100, 100);
+    document.getElementById('statLpgPercent').innerText = pct.toFixed(0) + '%';
+    const bar = document.getElementById('statLpgBar');
+    bar.style.width = pct + '%';
+    bar.style.background = pct >= 90 ? 'var(--red)' : 'var(--orange)';
+
+    // --- ค่าใช้จ่ายเดือนนี้ ---
+    const monthFuel = (globalData || []).filter(d => d && d.date && d.date.substring(0, 7) === curMonth);
+    const fuelTotal = monthFuel.reduce((s, d) => s + (parseFloat(d.totalPaid) || 0), 0);
+    const monthMaint = (globalMaintData || []).filter(d => d && d.date && d.date.substring(0, 7) === curMonth);
+    const maintTotal = liteMode ? 0 : monthMaint.reduce((s, d) => s + (parseFloat(d.cost) || 0), 0);
+
+    setNum('statThisMonth', fuelTotal);
+    setNum('statCombinedThisMonth', fuelTotal + maintTotal);
+    document.getElementById('statCombinedFuelPart').innerText = formatNumber(fuelTotal);
+    document.getElementById('statCombinedMaintPart').innerText = formatNumber(maintTotal);
+
+    // --- ต้นทุน/กม. ด้วยสูตรใหม่ ---
+    const mStart = curMonth + '-01', mEnd = shiftMonth(curMonth, 1) + '-01';
+    const m = computeCostRange(mStart, mEnd);
+    const y = computeCostRange(getCutoffStr(12), null);
+    const all = computeCostRange('0000-01-01', null);
+    const perKm = (r, key) => r ? formatNumber(r[key]) : '-';
+
+    document.getElementById('statAvgBahtPerKm').innerText = m ? formatNumber(m.fuelPerKm) + ' บ./กม.' : '-';
+    document.getElementById('statCombinedBahtPerKmMonth').innerText = perKm(m, 'combinedPerKm');
+    document.getElementById('statCombinedBahtPerKmYear').innerText = perKm(y, 'combinedPerKm');
+    document.getElementById('statCombinedBahtPerKm').innerText = perKm(all, 'combinedPerKm');
+
+    const note = [];
+    if (m) note.push(`เดือนนี้วิ่งแล้ว ${m.distance.toLocaleString()} กม.`);
+    else note.push('เดือนนี้ยังมีข้อมูลเลขไมล์ไม่พอสำหรับคำนวณ บ./กม.');
+    note.push('ระยะทางนับจากการเติมครั้งสุดท้ายของเดือนก่อน');
+    document.getElementById('statCostNote').innerText = note.join(' · ');
+
+    // --- เตือนเลขไมล์ผิดปกติ ---
+    const anomalies = getMileageAnomalies();
+    const w = document.getElementById('dataWarning');
+    if (anomalies.size > 0) {
+      w.innerHTML = `<i class="bi bi-exclamation-triangle-fill"></i><div><b>พบเลขไมล์ผิดปกติ ${anomalies.size} รายการ</b><br>เลขไมล์ลดลงเมื่อเรียงตามวันที่ ซึ่งทำให้ค่า บ./กม. เพี้ยน แตะเพื่อดูรายการ</div>`;
+      w.classList.remove('hidden');
+    } else w.classList.add('hidden');
+
+    // --- ซ่อมบำรุงเร็วๆนี้ ---
+    let overdue = 0;
+    (globalMaintData || []).forEach(item => {
+      if (!item || item.status !== 'N' || !item.date) return;
+      let soon = false;
+      if (item.nextDueMileage && parseInt(item.nextDueMileage) > 0 && latest > 0 && (parseInt(item.nextDueMileage) - latest) <= 1000) soon = true;
+      if (item.nextInMonths && !soon) {
+        const due = parseLocal(item.date);
+        due.setMonth(due.getMonth() + parseInt(item.nextInMonths));
+        if (Math.ceil((due.getTime() - todayDate.getTime()) / 86400000) <= 15) soon = true;
+      }
+      if (soon) overdue++;
+    });
+    const oe = document.getElementById('statOverdueMaint');
+    oe.innerHTML = `${overdue} <span class="unit">รายการ</span>`;
+    oe.style.color = overdue > 0 ? 'var(--red)' : 'var(--text)';
+    const badge = document.getElementById('tabMaintBadge');
+    badge.innerText = overdue;
+    badge.classList.toggle('hidden', overdue === 0);
+
+    renderRecommendedMaintenance();
+    renderFuelEfficiency();
+  }
+
+  // ===================== กราฟ + ค่าเฉลี่ยรายเดือน =====================
+  // แก้จากเดิม: นับ "เดือนปฏิทิน" จริง (เดือนที่ไม่มีข้อมูลนับเป็น 0) และไม่รวมเดือนปัจจุบันที่ยังไม่จบในค่าเฉลี่ย
+  // เดิมหารด้วยจำนวน "เดือนที่มีข้อมูล" ถ้าข้ามเดือนไปค่าเฉลี่ยจะสูงเกินจริง
+  function updateChart() {
+    const hasFuel = globalData && globalData.length > 0;
+    const hasMaint = globalMaintData && globalMaintData.length > 0;
+    if (!hasFuel && !hasMaint) return;
+
+    const filter = document.getElementById('chartFilter').value;
+    const map = {};
+    const ensure = (k) => map[k] || (map[k] = { Gasoline: 0, LPG: 0, Maintenance: 0 });
+    (globalData || []).forEach(it => {
+      if (!it || !it.date) return;
+      if (it.type === 'Gasoline' || it.type === 'LPG') ensure(it.date.substring(0, 7))[it.type] += (parseFloat(it.totalPaid) || 0);
+    });
+    (globalMaintData || []).forEach(it => {
+      if (!it || !it.date) return;
+      ensure(it.date.substring(0, 7)).Maintenance += (parseFloat(it.cost) || 0);
+    });
+
+    const dataKeys = Object.keys(map).sort();
+    if (!dataKeys.length) return;
+    const cur = getCurrentMonthStr();
+    const earliest = dataKeys[0];
+
+    let startKey = filter === 'all' ? earliest : shiftMonth(cur, -(parseInt(filter) - 1));
+    if (startKey < earliest) startKey = earliest;
+    const keys = [];
+    for (let k = startKey; k <= cur; k = shiftMonth(k, 1)) keys.push(k);
+
+    const gas = keys.map(k => map[k] ? map[k].Gasoline : 0);
+    const lpg = keys.map(k => map[k] ? map[k].LPG : 0);
+    const mnt = keys.map(k => map[k] ? map[k].Maintenance : 0);
+
+    // ค่าเฉลี่ยเชื้อเพลิง/เดือน: ใช้เฉพาะเดือนที่จบแล้ว (ถ้ามี)
+    const avgKeys = keys.length > 1 ? keys.filter(k => k !== cur) : keys;
+    const avg = avgKeys.reduce((s, k) => s + (map[k] ? map[k].Gasoline + map[k].LPG : 0), 0) / (avgKeys.length || 1);
+    document.getElementById('statAvgPeriodLabel').innerText =
+      filter === '6' ? 'เฉลี่ย 6 เดือนล่าสุด' : filter === '12' ? 'เฉลี่ย 1 ปีล่าสุด' : 'เฉลี่ยทั้งหมด';
+    setNum('statAvgMonthlySpend', avg);
+
+    const labels = keys.map(k => fmtThaiDate(k + '-01', { month: 'short', year: '2-digit' }));
+    const blue = cssVar('--blue'), orange = cssVar('--orange'), red = cssVar('--red');
+
+    if (myChart) {
+      myChart.data.labels = labels;
+      myChart.data.datasets[0].data = gas;
+      myChart.data.datasets[1].data = lpg;
+      if (myChart.data.datasets[2]) myChart.data.datasets[2].data = mnt;
+      myChart.update();
+      return;
+    }
+    const grid = cssVar('--sep'), tick = cssVar('--text3');
+    Chart.defaults.font.family = "-apple-system, 'SF Pro Text', 'Prompt', sans-serif";
+    myChart = new Chart(document.getElementById('expenseChart').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          { label: 'Gasoline', data: gas, backgroundColor: blue, borderRadius: 5, borderSkipped: false },
+          { label: 'LPG', data: lpg, backgroundColor: orange, borderRadius: 5, borderSkipped: false },
+          ...(liteMode ? [] : [{ label: 'ซ่อมบำรุง', data: mnt, backgroundColor: red, borderRadius: 5, borderSkipped: false }])
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        animation: { duration: reduceMotion ? 0 : 700, easing: 'easeOutQuart' },
+        scales: {
+          x: { stacked: true, grid: { display: false }, border: { display: false }, ticks: { color: tick, font: { size: 11 } } },
+          y: { stacked: true, beginAtZero: true, border: { display: false }, grid: { color: grid }, ticks: { color: tick, font: { size: 11 } } }
+        },
+        plugins: {
+          legend: { position: 'bottom', labels: { color: tick, usePointStyle: true, pointStyle: 'circle', boxWidth: 7, font: { size: 12 } } },
+          tooltip: {
+            padding: 10, cornerRadius: 10, mode: 'index', intersect: false,
+            callbacks: {
+              label: (c) => ` ${c.dataset.label}: ${formatNumber(c.parsed.y)} บ.`,
+              footer: (items) => 'รวม ' + formatNumber(items.reduce((s, i) => s + i.parsed.y, 0)) + ' บ.'
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // ===================== ประวัติการเติม =====================
+  function renderHistory() {
+    const container = document.getElementById('historyContainer');
+    const fe = document.getElementById('historyMonthFilter');
+    const filter = fe ? fe.value : 'all';
+
+    if (!globalData || globalData.length === 0) {
+      container.innerHTML = '<div class="empty"><i class="bi bi-fuel-pump"></i>ยังไม่มีข้อมูลในระบบ</div>';
+      return;
+    }
+
+    // ระยะที่วิ่ง = ส่วนต่างจากครั้งก่อนหน้า เรียงตามวันที่ (เลขไมล์ลดลง = ผิดปกติ)
+    const trip = {};
+    const anomalies = getMileageAnomalies();
+    const chrono = validFuelRecords();
+    chrono.forEach((it, i) => {
+      const id = String(it.id);
+      if (i === 0) { trip[id] = 0; return; }
+      const diff = parseInt(it.mileage) - parseInt(chrono[i - 1].mileage);
+      trip[id] = diff > 0 ? diff : 0;
+    });
+
+    const data = globalData.filter(it => it && it.date && (filter === 'all' || it.date.substring(0, 7) === filter))
+      .sort((a, b) => b.date.localeCompare(a.date) || (parseInt(b.mileage) || 0) - (parseInt(a.mileage) || 0));
+
+    if (!data.length) { container.innerHTML = '<div class="empty"><i class="bi bi-funnel"></i>ไม่พบข้อมูลตามเงื่อนไข</div>'; return; }
+
+    const rows = data.map(item => {
+      const id = String(item.id || '');
+      const km = trip[id] || 0;
+      const liters = item.calculatedLiters || item.liters || 0;
+      const amount = item.totalPaid || item.amount || 0;
+      const discount = item.discount ? parseInt(item.discount) : 0;
+      const lpg = item.type === 'LPG';
+      const bad = anomalies.has(id);
+      return `
+        <div class="li">
+          <div class="ico" style="background:var(${lpg ? '--orange' : '--blue'})"><i class="bi bi-${lpg ? 'fire' : 'fuel-pump-fill'}"></i></div>
+          <div class="grow">
+            <div class="t1">${formatNumber(amount)} บ.
+              ${item.type ? `<span class="pill ${lpg ? 'orange' : 'blue'}">${escapeHtml(item.type)}</span>` : ''}
+              ${bad ? '<span class="pill red"><i class="bi bi-exclamation-triangle-fill"></i>ไมล์ผิดปกติ</span>' : ''}
+            </div>
+            <div class="t2">${fmtThaiDate(item.date, { day: 'numeric', month: 'short' })} · <b style="color:var(--green)">${km > 0 ? 'วิ่ง ' + km.toLocaleString() + ' กม.' : 'วิ่ง - กม.'}</b> (${formatNumber(liters)} ล.)${discount > 0 ? ` · <span style="color:var(--green)">ลด ${discount.toLocaleString()} บ.</span>` : ''}</div>
+            <div class="t3"><i class="bi bi-speedometer2"></i> ${(parseInt(item.mileage) || 0).toLocaleString()} กม.</div>
+          </div>
+          <div class="acts">
+            <button type="button" class="ib" onclick="editRecord('${id}')" aria-label="แก้ไข"><i class="bi bi-pencil-square"></i></button>
+            <button type="button" class="ib danger" onclick="deleteRecord('${id}')" aria-label="ลบ"><i class="bi bi-trash3-fill"></i></button>
+          </div>
+        </div>`;
+    }).join('');
+    container.innerHTML = `<div class="list">${rows}</div>`;
+  }
+
+  function goToAnomalies() {
+    switchTab('form');
+    const sel = document.getElementById('historyMonthFilter');
+    if (sel) { sel.value = 'all'; renderHistory(); }
+    setTimeout(() => document.getElementById('historyContainer').scrollIntoView({ behavior: 'smooth', block: 'start' }), 120);
+  }
+
+  // ===================== บันทึก / แก้ไข / ลบ การเติม =====================
+  function handleSubmit(event) {
+    event.preventDefault();
+    const dateStr = document.getElementById('date').value;
+    const entered = parseInt(document.getElementById('mileage').value) || 0;
+    const prev = getBaseMileageForDate(dateStr);
+    const next = getNextMileageAfterDate(dateStr);
+
+    let warn = '';
+    if (prev > 0 && entered < prev) warn = `เลขไมล์ที่กรอก (${entered.toLocaleString()} กม.) น้อยกว่ารายการก่อนหน้า (${prev.toLocaleString()} กม.) เลขไมล์รถไม่ควรลดลง กรอกถูกต้องแล้วใช่ไหม?`;
+    else if (next !== null && entered > next) warn = `เลขไมล์ที่กรอก (${entered.toLocaleString()} กม.) มากกว่ารายการถัดไปที่มีอยู่ (${next.toLocaleString()} กม.) กรอกถูกต้องแล้วใช่ไหม?`;
+
+    if (warn) {
+      Swal.fire({ title: 'เลขไมล์ดูผิดปกติ', text: warn, icon: 'warning', showCancelButton: true,
+        confirmButtonColor: '#ff9500', cancelButtonColor: '#8e8e93', confirmButtonText: 'บันทึกต่อไป', cancelButtonText: 'กลับไปแก้ไข' })
+      .then((r) => { if (r.isConfirmed) submitFuelRecord(); });
+    } else submitFuelRecord();
+  }
+
+  function submitFuelRecord() {
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true; btn.innerText = 'กำลังบันทึก...';
+    const c = getEffectiveCalc();
+    const record = {
+      id: document.getElementById('recordId').value || null,
+      date: document.getElementById('date').value,
+      mileage: document.getElementById('mileage').value,
+      type: document.querySelector('input[name="fuelType"]:checked').value,
+      totalPaid: c.finalPaid,
+      pricePerLiter: document.getElementById('pricePerLiter').value,
+      calculatedLiters: c.calculatedLiters,
+      discount: c.discount
+    };
+    google.script.run
+      .withSuccessHandler(() => { resetForm(); loadData(); toastOk('บันทึกการเติมเชื้อเพลิงแล้ว'); switchTab('dashboard'); })
+      .withFailureHandler((err) => handleServerError(err, () => { btn.disabled = false; btn.innerText = 'บันทึกข้อมูล'; }))
+      .saveRecord(record);
+  }
+
+  function editRecord(id) {
+    const item = globalData.find(d => String(d.id) === String(id));
+    if (!item) return;
+    setMileageMode('odo');
+    document.getElementById('recordId').value = item.id;
+    document.getElementById('date').value = item.date;
+    document.getElementById('mileage').value = item.mileage;
+    document.querySelectorAll('input[name="fuelType"]').forEach(r => { if (r.value === item.type) r.checked = true; });
+    const dv = parseFloat(item.discount) || 0;
+    document.getElementById('hasLpgDiscount').checked = dv > 0;
+    document.getElementById('totalPaid').value = parseFloat(item.totalPaid) + dv;
+    document.getElementById('pricePerLiter').value = item.pricePerLiter;
+    toggleLpgDiscountView();
+    discountManualOverride = true;
+    document.getElementById('discountInput').value = dv || '';
+    document.getElementById('discountResetBtn').classList.remove('hidden');
+    triggerCalculation();
+    document.getElementById('formTitle').innerText = 'แก้ไขข้อมูล';
+    const b = document.getElementById('submitBtn');
+    b.innerText = 'บันทึกการแก้ไข'; b.disabled = false; b.classList.add('orange');
+    document.getElementById('cancelEditBtn').classList.remove('hidden');
+    switchTab('form');
+  }
+
+  function deleteRecord(id) {
+    Swal.fire({ title: 'ลบรายการนี้?', text: 'ข้อมูลในชีตจะถูกลบไปด้วย', icon: 'warning', showCancelButton: true,
+      confirmButtonColor: '#ff3b30', cancelButtonColor: '#8e8e93', confirmButtonText: 'ลบ', cancelButtonText: 'ยกเลิก' })
+    .then((result) => {
+      if (!result.isConfirmed) return;
+      document.getElementById('historyContainer').innerHTML = '<div class="sk"></div><div class="sk"></div>';
+      google.script.run
+        .withSuccessHandler(() => { loadData(); toastOk('ลบแล้ว'); })
+        .withFailureHandler((err) => { handleServerError(err); loadData(); })
+        .deleteRecord(id);
+    });
+  }
+
+  function resetForm() {
+    document.getElementById('recordId').value = '';
+    document.getElementById('date').value = getCurrentDateStr();
+    document.getElementById('mileage').value = '';
+    document.getElementById('mileageTripInput').value = '';
+    setMileageMode('trip');
+    document.getElementById('totalPaid').value = '';
+    document.getElementById('pricePerLiter').value = '';
+    document.querySelector('input[name="fuelType"][value="LPG"]').checked = true;
+    document.getElementById('hasLpgDiscount').checked = true;
+    discountManualOverride = false;
+    document.getElementById('discountResetBtn').classList.add('hidden');
+    document.getElementById('discountInput').value = '';
+    toggleLpgDiscountView();
+    triggerCalculation();
+    document.getElementById('formTitle').innerText = 'เติมเชื้อเพลิง';
+    const b = document.getElementById('submitBtn');
+    b.disabled = false; b.innerText = 'บันทึกข้อมูล'; b.classList.remove('orange');
+    document.getElementById('cancelEditBtn').classList.add('hidden');
+  }
+
+  function editLpgManual() {
+    const monthStr = getCurrentMonthStr();
+    const remaining = Math.max(200 - (currentMonthLpgLiters || 0), 0);
+    Swal.fire({
+      title: 'แก้ไขยอด LPG เดือนนี้', input: 'number', inputLabel: `ยอด LPG ที่เหลือ (ลิตรเต็ม) · ${monthStr}`, inputValue: remaining,
+      inputAttributes: { step: '1', min: '0', max: '200', inputmode: 'numeric' },
+      showCancelButton: true, confirmButtonText: 'บันทึก', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#007aff',
+      inputValidator: (v) => {
+        if (v === '' || v === null) return 'กรุณากรอกตัวเลข';
+        const n = parseInt(v);
+        if (n < 0 || n > 200) return 'ต้องอยู่ระหว่าง 0 - 200 ลิตร';
+      }
+    }).then((result) => {
+      if (!(result.isConfirmed && result.value !== undefined && result.value !== '')) return;
+      const usedInput = Math.max(200 - parseInt(result.value), 0);
+      google.script.run
+        .withSuccessHandler((res) => { lpgOverrideCache = { month: monthStr, used: usedInput, baseId: (res && res.baseId) || 0 }; updateDashboard(); triggerCalculation(); toastOk('บันทึกยอด LPG แล้ว'); })
+        .withFailureHandler((err) => handleServerError(err))
+        .saveLpgOverride(monthStr, usedInput);
+    });
+  }
+
+  // แตะที่ไหนก็ได้บนแถวฟอร์ม (ไม่ใช่แค่ตัวช่องกรอก) เพื่อเริ่มพิมพ์ — เป้าหมายแตะใหญ่ขึ้นบนมือถือ
+  document.addEventListener('click', (e) => {
+    const row = e.target.closest('.frow');
+    if (!row || e.target.closest('input,select,textarea,button,label,.switch,.seg')) return;
+    const f = row.querySelector('input:not([type=hidden]):not([type=checkbox]):not(.hidden),select,textarea');
+    if (!f) return;
+    f.focus();
+    if (f.type === 'date' && f.showPicker) { try { f.showPicker(); } catch (_) {} }
+  });
+
+  function navigateToPendingMaint() {
+    switchTab('maint');
+    document.getElementById('showOnlyPending').checked = true;
+    renderMaintenance();
+  }
+</script>
+</body>
+</html>
