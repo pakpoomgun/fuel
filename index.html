@@ -339,11 +339,12 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Fuel">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <script src="./config.js"></script>
   <!-- ===== PWA: ตัวเชื่อม google.script.run -> Apps Script Web App (fetch) ===== -->
   <script>
-    // แก้ 2 ค่านี้ให้ตรงกับของคุณ (ค่าเดียวกับใน Code.gs)
-    const GAS_URL = 'https://script.google.com/macros/s/AKfycbzhJlN4YdzbzpriifHRjJui07RWR93vFdFVCnGRJaRznoOhvQBMgTcPV9HJu5ZhtaiZrg/exec';
-    const API_KEY = 'PPgunP@ssw0rd';
+    // ค่า GAS_URL และ API_KEY อยู่ในไฟล์ config.js (แก้ที่นั่น ไม่ต้องแก้ไฟล์นี้)
+    const GAS_URL = (window.APP_CONFIG || {}).GAS_URL;
+    const API_KEY = (window.APP_CONFIG || {}).API_KEY;
 
     (function () {
       function makeRunner(onOk, onFail) {
@@ -352,6 +353,7 @@
             if (prop === 'withSuccessHandler') return (fn) => makeRunner(fn, onFail);
             if (prop === 'withFailureHandler') return (fn) => makeRunner(onOk, fn);
             return (...args) => {
+              if (!GAS_URL) { if (onFail) onFail(new Error('ยังไม่ได้ตั้งค่า config.js (GAS_URL)')); return; }
               fetch(GAS_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // ไม่ให้เกิด preflight
@@ -387,6 +389,11 @@
     </header>
 
     <div id="dataWarning" class="banner pressable hidden" onclick="goToAnomalies()"></div>
+
+    <div>
+      <div class="cap">แจ้งเตือน</div>
+      <div id="homeAlerts" class="list"></div>
+    </div>
 
     <div class="card">
       <div class="lbl" id="statCombinedLabel">ค่าใช้จ่ายรวมรถทั้งคัน · เดือนนี้</div>
@@ -1098,6 +1105,111 @@
     }).join('');
   }
 
+  // ===================== แจ้งเตือนหน้าแรก: เติมล่าสุด + ซ่อมบำรุงใกล้ถึงกำหนด =====================
+  let homeAlertsOpen = false;
+  const HOME_ALERT_VISIBLE = 3;
+  function toggleHomeAlerts() { homeAlertsOpen = !homeAlertsOpen; renderHomeAlerts(); }
+
+  function getLastFuelRecord() {
+    const recs = (globalData || []).filter(d => d && d.date);
+    if (!recs.length) return null;
+    return recs.slice().sort((a, b) => b.date.localeCompare(a.date) || (parseInt(b.id) || 0) - (parseInt(a.id) || 0))[0];
+  }
+
+  function getHomeMaintAlerts() {
+    const latest = getLatestFuelMileage();
+    const today = parseLocal(getCurrentDateStr());
+    const out = [];
+    const known = [];
+    getRecommendedMaintenance().forEach(r => {
+      known.push(r.name);
+      const over = r.status === 'overdue';
+      out.push({
+        title: r.name, over,
+        label: over ? `เกิน ${Math.abs(r.remainingKm).toLocaleString()} กม.` : `อีก ${r.remainingKm.toLocaleString()} กม.`,
+        sub: `ครบที่ ${r.nextDueMileage.toLocaleString()} กม.`
+      });
+    });
+    (globalMaintData || []).forEach(item => {
+      if (!item || item.status !== 'N' || !item.date) return;
+      const details = String(item.details || '');
+      if (known.some(n => details.includes(n))) return;   // กันซ้ำกับรายการจากตารางเช็คระยะ
+      let km = null, days = null;
+      if (item.nextDueMileage && parseInt(item.nextDueMileage) > 0 && latest > 0) km = parseInt(item.nextDueMileage) - latest;
+      if (item.nextInMonths) {
+        const due = parseLocal(item.date);
+        due.setMonth(due.getMonth() + parseInt(item.nextInMonths));
+        days = Math.ceil((due.getTime() - today.getTime()) / 86400000);
+      }
+      const kmSoon = km !== null && km <= 1000;
+      const daySoon = days !== null && days <= 15;
+      if (!kmSoon && !daySoon) return;
+      const parts = [];
+      if (kmSoon) parts.push(km <= 0 ? `เกิน ${Math.abs(km).toLocaleString()} กม.` : `อีก ${km.toLocaleString()} กม.`);
+      if (daySoon) parts.push(days < 0 ? `เลย ${Math.abs(days)} วัน` : (days === 0 ? 'ครบวันนี้' : `อีก ${days} วัน`));
+      out.push({
+        title: details || item.category || 'ซ่อมบำรุง',
+        over: (km !== null && km <= 0) || (days !== null && days < 0),
+        label: parts[0], sub: parts.slice(1).join(' · ') || (item.category || '')
+      });
+    });
+    return out.sort((a, b) => (b.over ? 1 : 0) - (a.over ? 1 : 0));   // เกินกำหนดขึ้นก่อน (คงลำดับเดิมในกลุ่มเดียวกัน)
+  }
+
+  function renderHomeAlerts() {
+    const c = document.getElementById('homeAlerts');
+    if (!c) return;
+    let html = '';
+
+    // --- เติมเชื้อเพลิงล่าสุด ---
+    const last = getLastFuelRecord();
+    if (last) {
+      const isLpg = last.type === 'LPG';
+      const diff = Math.round((parseLocal(getCurrentDateStr()).getTime() - parseLocal(last.date).getTime()) / 86400000);
+      const ago = diff <= 0 ? 'วันนี้' : (diff === 1 ? 'เมื่อวาน' : diff + ' วันก่อน');
+      const paid = parseFloat(last.totalPaid) || 0;
+      html += `
+        <div class="li">
+          <div class="ico" style="background:var(${isLpg ? '--orange' : '--blue'})"><i class="bi bi-${isLpg ? 'fire' : 'fuel-pump-fill'}"></i></div>
+          <div class="grow">
+            <div class="t1">เติมล่าสุด · ${isLpg ? 'LPG' : 'น้ำมัน'}</div>
+            <div class="t3">${fmtThaiDate(last.date, { day: 'numeric', month: 'short' })} · ไมล์ ${(parseInt(last.mileage) || 0).toLocaleString()} กม.</div>
+          </div>
+          <div style="text-align:right">
+            <span class="pill blue">${ago}</span>
+            <div class="t3">${paid.toLocaleString('en-US', { maximumFractionDigits: 0 })} บาท</div>
+          </div>
+        </div>`;
+    } else {
+      html += '<div class="li"><div class="ico" style="background:var(--blue)"><i class="bi bi-fuel-pump-fill"></i></div><div class="grow"><div class="t1">ยังไม่มีบันทึกการเติมเชื้อเพลิง</div></div></div>';
+    }
+
+    // --- ซ่อมบำรุงที่ต้องทำ ---
+    const alerts = getHomeMaintAlerts();
+    const shown = homeAlertsOpen ? alerts : alerts.slice(0, HOME_ALERT_VISIBLE);
+    shown.forEach(a => {
+      html += `
+        <div class="li">
+          <div class="ico" style="background:var(${a.over ? '--red' : '--orange'})"><i class="bi bi-${a.over ? 'exclamation-triangle-fill' : 'wrench-adjustable'}"></i></div>
+          <div class="grow">
+            <div class="t1">${escapeHtml(a.title)}</div>
+            ${a.sub ? `<div class="t3">${escapeHtml(a.sub)}</div>` : ''}
+          </div>
+          <span class="pill ${a.over ? 'red' : 'orange'}">${a.label}</span>
+        </div>`;
+    });
+    if (alerts.length > HOME_ALERT_VISIBLE) {
+      html += `
+        <div class="li" style="cursor:pointer" onclick="toggleHomeAlerts()">
+          <div class="grow t3" style="text-align:center;font-size:13px;color:var(--blue)">${homeAlertsOpen ? 'ย่อรายการ' : 'ดูอีก ' + (alerts.length - HOME_ALERT_VISIBLE) + ' รายการ'}</div>
+        </div>`;
+    }
+    if (!alerts.length && getLatestFuelMileage() > 0) {
+      html += '<div class="li"><div class="ico" style="background:var(--green)"><i class="bi bi-check-lg"></i></div><div class="grow"><div class="t1">ไม่มีรายการซ่อมบำรุงใกล้ถึงกำหนด</div></div></div>';
+    }
+    c.innerHTML = html;
+  }
+
   // ===================== สลับแท็บ =====================
   function switchTab(tab) {
     const map = { dashboard: 'Dashboard', form: 'Form', maint: 'Maint', schedule: 'Schedule' };
@@ -1539,6 +1651,7 @@
     badge.classList.toggle('hidden', overdue === 0);
 
     renderRecommendedMaintenance();
+    renderHomeAlerts();
     renderFuelEfficiency();
   }
 
